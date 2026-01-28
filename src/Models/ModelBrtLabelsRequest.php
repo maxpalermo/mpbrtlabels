@@ -34,6 +34,8 @@ class ModelBrtLabelsRequest extends \ObjectModel
     public $createDataJson;
     public $labelParametersJson;
     public $parcelsJson;
+    public $isCODMandatory;
+    public $cashOnDelivery;
     public $date_add;
     public $date_upd;
 
@@ -50,6 +52,8 @@ class ModelBrtLabelsRequest extends \ObjectModel
             'createDataJson' => ['type' => self::TYPE_HTML, 'validate' => 'isJson'],
             'labelParametersJson' => ['type' => self::TYPE_HTML, 'validate' => 'isJson'],
             'parcelsJson' => ['type' => self::TYPE_HTML, 'validate' => 'isJson'],
+            'isCODMandatory' => ['type' => self::TYPE_BOOL, 'validate' => 'isBool'],
+            'cashOnDelivery' => ['type' => self::TYPE_FLOAT, 'validate' => 'isPrice'],
             'date_add' => ['type' => self::TYPE_DATE, 'validate' => 'isDate'],
             'date_upd' => ['type' => self::TYPE_DATE, 'validate' => 'isDate'],
         ],
@@ -222,6 +226,8 @@ class ModelBrtLabelsRequest extends \ObjectModel
                 `createDataJson` json NOT NULL,
                 `labelParametersJson` json NOT NULL,
                 `parcelsJson` json NOT NULL,
+                `isCODMandatory` boolean NOT NULL DEFAULT 0,
+                `cashOnDelivery` decimal(20,6) NOT NULL DEFAULT 0.00,
                 `date_add` datetime NOT NULL,
                 `date_upd` datetime NOT NULL,
                 PRIMARY KEY (`id_brt_labels_request`),
@@ -246,6 +252,8 @@ class ModelBrtLabelsRequest extends \ObjectModel
             'isLabelRequired' => (int) $this->isLabelRequired,
             'labelParametersJson' => !is_array($this->labelParametersJson) ? json_decode($this->labelParametersJson, true) : $this->labelParametersJson,
             'parcelsJson' => !is_array($this->parcelsJson) ? json_decode($this->parcelsJson, true) : $this->parcelsJson,
+            'isCODMandatory' => (int) $this->isCODMandatory,
+            'cashOnDelivery' => (float) $this->cashOnDelivery,
             'date_add' => $this->date_add,
             'date_upd' => $this->date_upd,
         ];

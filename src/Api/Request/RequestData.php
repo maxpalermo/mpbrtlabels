@@ -269,6 +269,8 @@ class RequestData
             $model->isLabelRequired = (int) ($requestData['isLabelRequired'] ?? 0);
             $model->labelParametersJson = $requestData['labelParameters'];
             $model->parcelsJson = $this->getParcels();
+            $model->isCODMandatory = (int) ($requestData['createData']['isCODMandatory'] ?? 0);
+            $model->cashOnDelivery = (float) ($requestData['createData']['cashOnDelivery'] ?? 0);
             $model->date_add = date('Y-m-d H:i:s');
             if (\Validate::isLoadedObject($model)) {
                 $model->date_upd = date('Y-m-d H:i:s');

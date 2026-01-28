@@ -102,6 +102,12 @@ function bindBtnImportOrder() {
 
     btn.addEventListener("click", async (e) => {
         e.preventDefault();
+
+        //Ripristino il bottone INVIO
+        showHideButtons("submitCreateRequest", "submitPrintLabels");
+        //Cancello la tabella dei colli
+        clearParcelsList();
+
         const orderId = document.getElementById("order_id").value;
         const formData = new FormData();
         formData.append("action", "importOrderForLabel");
@@ -123,6 +129,27 @@ function bindBtnImportOrder() {
 
         showSuccessMessage("Ordine caricato");
     });
+}
+
+function showHideButtons(showBtnId, hideBtnId) {
+    const showBtn = document.getElementById(showBtnId);
+    const hideBtn = document.getElementById(hideBtnId);
+    if (!showBtn || !hideBtn) {
+        showErrorMessage("Pulsanti non trovati");
+        return;
+    }
+    $(showBtn).show();
+    $(hideBtn).hide();
+}
+
+function clearParcelsList() {
+    const table = document.getElementById("tableParcels");
+    if (!table) {
+        showErrorMessage("Tabella dei colli non trovata");
+        return;
+    }
+
+    table.querySelector("tbody").innerHTML = "";
 }
 
 function fillLabelForm(params) {
@@ -166,8 +193,7 @@ function fillLabelForm(params) {
         document.querySelector('[name="createData[volumeM3]"]').value = Number(volumeM3).toFixed(3);
 
         if (params.labelExists !== false) {
-            $(document.getElementById("submitCreateRequest")).hide();
-            $(document.getElementById("submitPrintLabels")).show();
+            showHideButtons("submitPrintLabels", "submitCreateRequest");
 
             const labels = [];
             params.labels.forEach((label) => {
