@@ -1,0 +1,495 @@
+<style>
+    #dlg-brt-request {
+        border: none;
+        background-color: transparent;
+        padding: 0;
+        margin: 0 auto;
+        width: 80vw;
+        height: 90vh;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    #dlg-brt-request::backdrop {
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(4px);
+    }
+
+    .text-right {
+        text-align: right;
+        padding-right: 8px;
+    }
+</style>
+<div class="panel">
+    <div class="panel-heading">
+        <div class="title">
+            <span class="icon icon-barcode"></span>
+            <span class="title">Gestione etichette</span>
+        </div>
+    </div>
+    <div class="panel-body">
+        <div class="d-flex justify-content-start align-items-center gap-2">
+            <button type="button" class="btn btn-primary" id="btn-open-brt-dialog">
+                <span class="material-icons mr-2">add</span>
+                <span>Crea richiesta BRT</span>
+            </button>
+            <div class="d-flex justify-content-start align-items-center gap-2" style="border: 1px solid #dcdcdc; border-radius: 5px; padding: 16px;">
+                <input type="text" class="form-control text-right" id="deleteNumericSenderReference" placeholder="Riferimento numerico" value="">
+                <input type="text" class="form-control text-right" id="deleteAlphanumericSenderReference" placeholder="Riferimento alfanumerico" value="">
+                <button type="button" class="btn btn-primary" id="btn-delete-brt-label">
+                    <span class="material-icons mr-2">delete</span>
+                    <span>Elimina</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<dialog id="dlg-brt-request" class="brt-dialog" closedby="none">
+    <form id="form-brt-request" method="POST" action="{{ adminControllerUrl }}">
+        <div class="panel" style="margin-bottom:0;">
+            <div class="panel-heading d-flex justify-content-between align-items-center">
+                <div class="title">
+                    <span class="material-icons mr-2">receipt_long</span>
+                    <span class="title">Dati richiesta</span>
+                    {% if sandbox_enabled %}
+                        <span class="badge badge-warning">Sandbox Attiva</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="panel-body">
+                <input type="hidden" name="request_json" id="request_json" value="">
+                <fieldset >
+                    <legend>Parametri spedizione</legend>
+                    <div class="btn-group pull-right">
+                        <button type="button" class="btn btn-default" name="showLastError" id="showLastError" tabindex="-1" title="Ultimo Errore">
+                            <span class="material-icons text-danger">error</span>
+                        </button>
+                        <button type="button" class="btn btn-default" name="submitPrintLabels" id="submitPrintLabels" tabindex="-1" title="Stampa etichette" style="display: none;">
+                            <span class="material-icons text-success">print</span>
+                        </button>
+                        <button type="button" class="btn btn-default" name="submitCreateRequest" id="submitCreateRequest" tabindex="-1" title="Invia">
+                            <span class="material-icons text-success">send</span>
+                        </button>
+                        <button type="button" class="btn btn-default" id="btn-close-brt-dialog" tabindex="-1" title="Chiudi">
+                            <span class="material-icons text-info">close</span>
+                        </button>
+                    </div>
+                    <div class="d-flex justify-content-start align-items-top gap-4">
+                        <div class="form-group">
+                            <label for="numericSenderReference">Riferimento Numerico</label>
+                            <input type="text" class="form-control" name="createData[numericSenderReference]" id="numericSenderReference" value="" autofocus>
+                        </div>
+                        <div class="form-group">
+                            <label for="alphanumericSenderReference">Riferimento Alfanumerico</label>
+                            <input type="text" class="form-control" name="createData[alphanumericSenderReference]" id="alphanumericSenderReference" value="">
+                        </div>
+                        <div class="form-group">
+                            <label for="senderParcelType">Natura Merce</label>
+                            <input type="text" class="form-control" name="createData[senderParcelType]" id="senderParcelType" value="">
+                        </div>
+                        {% if showImportOrder %}
+                        <div class="form-group d-flex justify-content-start align-items-center gap-2" style="border: 1px solid #dcdcdc; border-radius: 5px; padding: 16px;">
+                            <label>Importa dall'ordine</label>
+                            <input type="text" class="form-control" name="order_id" id="order_id" value="">
+                            <button type="button" class="btn btn-primary" id="btn-import-order">
+                                <span class="material-icons mr-2">import_contacts</span>
+                                <span>Importa</span>
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </fieldset>
+                <fieldset >
+                    <legend>Destinatario</legend>
+                    <div class="d-flex justify-content-start align-items-top gap-4">
+                        <div class="form-group  d-grow">
+                            <label for="consigneeCompanyName">Ragione sociale</label>
+                            <input type="text" class="form-control" name="createData[consigneeCompanyName]" id="consigneeCompanyName" value="">
+                        </div>
+                        <div class="form-group  d-grow">
+                            <label for="consigneeAddress">Indirizzo</label>
+                            <input type="text" class="form-control" name="createData[consigneeAddress]" id="consigneeAddress" value="">
+                        </div>
+                        <div class="form-group fixed-width-md">
+                            <label for="consigneeZIPCode">CAP</label>
+                            <input type="text" class="form-control" name="createData[consigneeZIPCode]" id="consigneeZIPCode" value="">
+                        </div>
+                        <div class="form-group d-grow">
+                            <label for="consigneeCity">Città</label>
+                            <input type="text" class="form-control" name="createData[consigneeCity]" id="consigneeCity" value="">
+                        </div>
+                        <div class="form-group fixed-width-md">
+                            <label for="consigneeProvinceAbbreviation">Provincia</label>
+                            <input type="text" class="form-control" name="createData[consigneeProvinceAbbreviation]" id="consigneeProvinceAbbreviation" value="">
+                        </div>
+                        <div class="form-group fixed-width-md">
+                            <label for="consigneeCountryAbbreviationISOAlpha2">Nazione</label>
+                            <input type="text" class="form-control" name="createData[consigneeCountryAbbreviationISOAlpha2]" id="consigneeCountryAbbreviationISOAlpha2" value="IT">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-start align-items-top gap-4">
+                        <div class="form-group d-grow">
+                            <label for="consigneeContactName">Contatto</label>
+                            <input type="text" class="form-control" name="createData[consigneeContactName]" id="consigneeContactName" value="">
+                        </div>
+                        <div class="form-group fixed-width-lg">
+                            <label for="consigneeTelephone">Telefono</label>
+                            <input type="text" class="form-control" name="createData[consigneeTelephone]" id="consigneeTelephone" value="">
+                        </div>
+                        <div class="form-group fixed-width-lg">
+                            <label for="consigneeMobilePhoneNumber">Cellulare</label>
+                            <input type="text" class="form-control" name="createData[consigneeMobilePhoneNumber]" id="consigneeMobilePhoneNumber" value="">
+                        </div>
+                        <div class="form-group d-grow">
+                            <label for="consigneeEMail">Email</label>
+                            <input type="email" class="form-control" name="createData[consigneeEMail]" id="consigneeEMail" value="">
+                        </div>
+                        <div class="form-group d-grow">
+                            <label for="notes">Note</label>
+                            <textarea class="form-control" name="createData[notes]" id="notes" rows="3"></textarea>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset >
+                    <legend>Colli</legend>
+                    <div class="d-flex justify-content-start align-items-top gap-4">
+                        <div class="form-group">
+                            <div class="d-flex justify-content-start align-items-top gap-4">
+                                <div class="form-group fixed-width-md">
+                                    <label for="numberOfParcels">Totale Colli</label>
+                                    <input type="number" class="form-control text-right" name="createData[numberOfParcels]" id="numberOfParcels" value="1" min="1">
+                                </div>
+                                <div class="form-group fixed-width-md">
+                                    <label for="weightKG">Totale Peso Kg</label>
+                                    <input type="number" step="0.1" class="form-control text-right" name="createData[weightKG]" id="weightKG" value="0">
+                                </div>
+                                <div class="form-group fixed-width-md">
+                                    <label for="volumeM3">Totale Volume m<sup>3</sup></label>
+                                    <input type="number" step="0.001" class="form-control text-right" name="createData[volumeM3]" id="volumeM3" value="0">
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end align-items-top gap-4">
+                                <button type="button" class="btn btn-primary" id="btn-add-parcel">
+                                    <span class="material-icons mr-2">add</span>
+                                    <span>Aggiungi collo</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="d-grow">
+                            <table id="tableParcels" class="table table-condensed table-striped table-bordered table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Collo</th>
+                                        <th>Lunghezza</th>
+                                        <th>Altezza</th>
+                                        <th>Profondità</th>
+                                        <th>Peso</th>
+                                        <th>Volume</th>
+                                        <th>Operazioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset >
+                    <legend>Contrassegno</legend>
+                    <div class="d-flex justify-content-start align-items-top gap-4">
+                        <div class="form-group">
+                            <label>Contrassegno</label>
+                            <div class="form-input">
+                                <span class="switch prestashop-switch fixed-width-lg">
+                                <input type="radio" name="createData[isCODMandatory]" id="isCODMandatory_1" value="1">
+                                <label for="isCODMandatory_1">SI</label>
+                                <input type="radio" name="createData[isCODMandatory]" id="isCODMandatory_0" value="0" checked>
+                                <label for="isCODMandatory_0">NO</label>
+                                <a class="slide-button btn"></a>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Importo</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="createData[cashOnDelivery]" id="cashOnDelivery" value="0.00">
+                                <span class="input-group-addon">EUR</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo di pagamento</label>
+                            <select class="form-control" name="createData[codPaymentType]" id="codPaymentType">
+                                {% for item in codPaymentTypeOptions %}
+                                     <option value="{{ item.id }}">{{ item.value }}</option>
+                                 {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>Impostazioni</legend>
+                    <div class="d-flex justify-content-start align-items-top gap-4">
+                        <div class="form-group">
+                            <label for="network">Network</label>
+                            <select class="form control" name="createData[network]" id="network">
+                                <option value="">Default</option>
+                                <option value="D">DPD</option>
+                                <option value="E">Euro Express</option>
+                                <option value="S">FED</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="deliveryFreightTypeCode">Porto</label>
+                            <select class="form control" name="createData[deliveryFreightTypeCode]" id="deliveryFreightTypeCode">
+                                <option value="DAP">Franco</option>
+                                <option value="EXW">Assegnato</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="serviceType">Servizio</label>
+                            <select class="form control" name="createData[serviceType]" id="serviceType">
+                                <option value="">Default</option>
+                                <option value="E">Priority</option>
+                                <option value="H">10:30</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Cambia Stato in {{ orderStateChange }}</label>
+                            <div class="form-input">
+                                <span class="switch prestashop-switch fixed-width-lg">
+                                <input type="radio" name="changeOrderState" id="changeOrderState_1" value="1" checked>
+                                <label for="changeOrderState_1">SI</label>
+                                <input type="radio" name="changeOrderState" id="changeOrderState_0" value="0">
+                                <label for="changeOrderState_0">NO</label>
+                                <a class="slide-button btn"></a>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Codice PUDO</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="createData[pudoId]" id="pudoId" value="">
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+    </form>
+</dialog>
+
+<div class="panel">
+    <div class="panel-heading">
+        <i class="material-icons">label</i>
+        <span>Elenco colli</span>
+    </div>
+    <div class="panel-body">
+        <table class="table-bordered table-condensed table-striped table-hover" id="table-list-parcels">
+        </table>
+    </div>
+</div>
+
+<link rel="stylesheet" href="{{ asset('bs-table/bootstrap-table.min.css') }}">
+<link rel="stylesheet" href="{{ asset('bs-table/extensions/filter-control/bootstrap-table-filter-control.min.css') }}">
+<script src="{{ asset('bs-table/bootstrap-table.min.js') }}"></script>
+<script src="{{ asset('bs-table/extensions/filter-control/bootstrap-table-filter-control.min.js') }}"></script>
+<script src="{{ asset('bs-table/locale/bootstrap-table-it-IT.min.js') }}"></script>
+
+<script src="{{ asset('js/Parcel.js') }}"></script>
+<script src="{{ asset('js/Parcels.js') }}"></script>
+<script src="{{ asset('js/AdminMpBrtLabels.js') }}"></script>
+<script src="{{ asset('js/qz-tray.js') }}"></script>
+<script src="{{ asset('js/PdfLib/pdf-lib.min.js') }}"></script>
+<script src="{{ asset('js/mergePDF.js') }}"></script>
+
+<script>
+    const adminControllerUrl = "{{ adminControllerUrl | raw }}";
+    let mergePDF = new PdfMerger();
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const table = document.getElementById('table-list-parcels');
+        initTable(table);
+    });
+
+    function initTable(table) {
+        $(table).bootstrapTable({
+            url: adminControllerUrl,
+            method: "post",
+            contentType: "application/x-www-form-urlencoded",
+            queryParams: function (params) {
+                console.log("QueryParams", params);
+
+                return {
+                    ajax: 1,
+                    action: "fetchTableParcels",
+                    type: "all",
+                    limit: params.limit,
+                    offset: params.offset,
+                    search: params.search,
+                    sort: params.sort == undefined ? "id_brt_labels_parcel" : params.sort,
+                    order: params.order == undefined ? "desc" : params.order,
+                    filter: params.filter == undefined ? "" : params.filter,
+                };
+            },
+            search: false,
+            filterControl: true,
+            filterControlVisible: true,
+            filterControlSearchClear: true,
+            showFilterControlSwitch: true,
+            searchOnEnterKey: true,
+            sortSelectOptions: true,
+            serverSort: true,
+            sidePagination: "server",
+            pagination: true,
+            showRefresh: true,
+            showColumns: false,
+            striped: true,
+            condensed: true,
+            pageSize: 25,
+            pageList: [10, 25, 50, 100, 250, 500],
+            locale: "it-IT",
+            classes: "table table-bordered table-hover",
+            theadClasses: "thead-dark",
+            showExport: false,
+            toolbar: null,
+            uniqueId: "id_brt_labels_parcel",
+            detailView: false, // Imposta a true per avere il dettaglio della riga su onExpandRow
+            detailFormatter: (_, row) => {
+                return '<div id="detail-' + row.id_carrier_brt_localita + '">Caricamento...</div>';
+            },
+            onExpandRow: (_, row, $detail) => {
+                //Per ora non serve, ma lasciamo il codice per futura implementazione
+                //$details è il contenuto da visualizzare
+            },
+            iconsPrefix: "icon", // usa Font Awesome invece delle glyphicons
+            icons: {
+                detailOpen: "icon-plus icon-2x", // icona quando è chiuso
+                detailClose: "icon-minus icon-2x", // icona quando è aperto
+            },
+            onPostBody: function () {
+                fixBootStrapTableIcons();
+                fixDropDownMenuPagination();
+            },
+            columns: [
+                {
+                    field: "id_brt_labels_parcel",
+                    title: "ID",
+                    align: "left",
+                    sortable: true,
+                    uniqueId: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "PECOD",
+                    title: "CODICE",
+                    align: "left",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "PPESO",
+                    title: "Peso",
+                    align: "right",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value} Kg</span>`;
+                    },
+                },
+                {
+                    field: "PVOLU",
+                    title: "Volume",
+                    align: "right",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value} m<sup>3</sup></span>`;
+                    },
+                },
+                {
+                    field: "X",
+                    title: "X",
+                    align: "right",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value/10} cm</span>`;
+                    },
+                },
+                {
+                    field: "Y",
+                    title: "Y",
+                    align: "right",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value/10} cm</span>`;
+                    },
+                },
+                {
+                    field: "Z",
+                    title: "Z",
+                    align: "right",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value/10} cm</span>`;
+                    },
+                },
+                {
+                    field: "ID_FISCALE",
+                    title: "Progressivo",
+                    align: "right",
+                    sortable: true,
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "date_add",
+                    title: "Data Inserimento",
+                    align: "center",
+                    sortable: true,
+                    formatter: function (value, row, index) {
+                        return dateToItalian(value);
+                    },
+                },
+                {
+                    field: "date_upd",
+                    title: "Data Aggiornamento",
+                    align: "center",
+                    sortable: true,
+                    formatter: function (value, row, index) {
+                        return dateToItalian(value);
+                    },
+                },
+                {
+                    field: "action",
+                    title: "Azioni",
+                    align: "center",
+                    width: 50,
+                    sortable: false,
+                    formatter: function (value, row, index) {
+                        return `
+                            <div class="d-flex justify-content-center align-items-center gap-2">
+                                <button type="button" class="btn btn-primary btn-sm" name="btn-edit-alias" title="Alias" data-id="${row.id_mpnote}">
+                                    <span class="material-icons">edit</span>
+                                </button>
+                            </div>
+                        `;
+                    },
+                },
+            ],
+        });
+    }
+</script>

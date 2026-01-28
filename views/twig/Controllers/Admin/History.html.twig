@@ -1,0 +1,402 @@
+<style>
+    #dlg-brt-request {
+        border: none;
+        background-color: transparent;
+        padding: 0;
+        margin: 0 auto;
+        width: 80vw;
+        height: 90vh;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    #dlg-brt-request::backdrop {
+        background: rgba(0, 0, 0, 0.4) !important;
+        backdrop-filter: blur(4px) !important;
+    }
+
+    [class*="bootstrap-table-filter-control"] {
+        padding: 2px !important;
+        text-align: center !important;
+    }
+
+    .text-right {
+        text-align: right;
+        padding-right: 8px;
+    }
+</style>
+<div class="panel">
+    <div class="panel-heading">
+        <div class="title">
+            <span class="icon icon-barcode"></span>
+            <span class="title">Storico Bordero</span>
+        </div>
+    </div>
+    <div class="panel-body">
+        <table class="table-bordered table-condensed table-striped table-hover" id="table-list-bordero">
+        </table>
+    </div>
+</div>
+
+<link rel="stylesheet" href="{{ asset('bs-table/bootstrap-table.min.css') }}">
+<link rel="stylesheet" href="{{ asset('bs-table/extensions/filter-control/bootstrap-table-filter-control.min.css') }}">
+<script src="{{ asset('bs-table/bootstrap-table.min.js') }}"></script>
+<script src="{{ asset('bs-table/extensions/filter-control/bootstrap-table-filter-control.min.js') }}"></script>
+<script src="{{ asset('bs-table/locale/bootstrap-table-it-IT.min.js') }}"></script>
+<script src="{{ asset('js/AdminMpBrtLabels.js') }}"></script>
+<script src="{{ asset('js/qz-tray.js') }}"></script>
+<script src="{{ asset('js/PdfLib/pdf-lib.min.js') }}"></script>
+<script src="{{ asset('js/mergePDF.js') }}"></script>
+<script src="{{ asset('js/PrintParcels.js') }}"></script>
+
+<script>
+    const adminControllerUrl = "{{ adminControllerUrl | raw }}";
+    let mergePDF = new PdfMerger();
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const table = document.getElementById('table-list-bordero');
+        initTable(table);
+    });
+
+    async function initPrintParcels(parcels) {
+        const printParcels = new PrintParcels(parcels, adminControllerUrl);
+        await printParcels.fetch();
+        console.log("PrintParcels", printParcels);
+
+        await printParcels.open();
+    }
+
+    function bindTableRowsButtons()
+    {
+        const table = document.getElementById('table-list-bordero');
+        const buttons = table.querySelectorAll('tbody tr button');
+        const tableRows = $(table).bootstrapTable('getData');
+        console.log("Table rows", tableRows);
+        
+        // Add click event to each row
+        if (buttons) {
+            buttons.forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const parcels = [];
+                    const row = button.closest('tr');
+                    const dataIndex = row.dataset.index;
+                    const numericSenderReference = tableRows[dataIndex].numericSenderReference;
+                    
+                    parcels.push({
+                        numericSenderReference: numericSenderReference,
+                        year: tableRows[dataIndex].year
+                    });
+                    
+                    await initPrintParcels(parcels);
+                });
+            });
+        }
+    }
+
+    function initTable(table) {
+        $(table).bootstrapTable({
+            url: adminControllerUrl,
+            method: "post",
+            contentType: "application/x-www-form-urlencoded",
+            queryParams: function (params) {
+                console.log("QueryParams", params);
+
+                return {
+                    ajax: 1,
+                    action: "fetchTableBordero",
+                    type: "all",
+                    limit: params.limit,
+                    offset: params.offset,
+                    search: params.search,
+                    sort: params.sort == undefined ? "id_brt_labels_response" : params.sort,
+                    order: params.order == undefined ? "desc" : params.order,
+                    filter: params.filter == undefined ? "" : params.filter,
+                };
+            },
+            search: false,
+            filterControl: true,
+            filterControlVisible: true,
+            filterControlSearchClear: true,
+            showFilterControlSwitch: true,
+            searchOnEnterKey: true,
+            sortSelectOptions: true,
+            serverSort: true,
+            sidePagination: "server",
+            pagination: true,
+            showRefresh: true,
+            showColumns: false,
+            striped: true,
+            condensed: true,
+            pageSize: 25,
+            pageList: [10, 25, 50, 100, 250, 500],
+            locale: "it-IT",
+            classes: "table table-bordered table-hover",
+            theadClasses: "thead-dark",
+            showExport: false,
+            toolbar: null,
+            uniqueId: "id_brt_labels_response",
+            detailView: false, // Imposta a true per avere il dettaglio della riga su onExpandRow
+            detailFormatter: (_, row) => {
+                return '<div id="detail-' + row.id_brt_labels_response + '">Caricamento...</div>';
+            },
+            onExpandRow: (_, row, $detail) => {
+                //Per ora non serve, ma lasciamo il codice per futura implementazione
+                //$details è il contenuto da visualizzare
+            },
+            iconsPrefix: "icon", // usa Font Awesome invece delle glyphicons
+            icons: {
+                detailOpen: "icon-plus icon-2x", // icona quando è chiuso
+                detailClose: "icon-minus icon-2x", // icona quando è aperto
+            },
+            onPostBody: function () {
+                fixBootStrapTableIcons();
+                fixDropDownMenuPagination();
+                bindTableRowsButtons();
+            },
+            columns: [
+                {
+                    field: "id_brt_labels_response",
+                    title: "ID",
+                    align: "left",
+                    sortable: true,
+                    uniqueId: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "numericSenderReference",
+                    title: "Codice numerico",
+                    align: "left",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "alphanumericSenderReference",
+                    title: "Codice alfanumerico",
+                    align: "left",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "consigneeCompanyName",
+                    title: "Destinatario",
+                    align: "left",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "consigneeAddress",
+                    title: "Indirizzo",
+                    align: "left",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "consigneeZIPCode",
+                    title: "CAP",
+                    align: "left",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "consigneeCity",
+                    title: "Città",
+                    align: "left",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "consigneeProvinceAbbreviation",
+                    title: "Prov",
+                    align: "center",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "consigneeCountryAbbreviationBRT",
+                    title: "Nazione",
+                    align: "center",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "numberOfParcels",
+                    title: "Colli",
+                    align: "right",
+                    sortable: true,
+                    filterControl: "input",
+                    width: 48,
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "weightKG",
+                    title: "Peso",
+                    align: "right",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value} Kg</span>`;
+                    },
+                },
+                {
+                    field: "volumeM3",
+                    title: "Volume",
+                    align: "right",
+                    sortable: true,
+                    filterControl: "input",
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value} m³</span>`;
+                    },
+                },
+                {
+                    field: "isCODMandatory",
+                    title: "Contrassegno",
+                    align: "right",
+                    sortable: true,
+                    filterControl: "select",
+                    filterData: 'json:{"0":"No","1":"Si"}',
+                    width: 72,
+                    formatter: function (value, row, index) {
+                        row.cashOnDeliveryFormatted = Number(row.cashOnDelivery).toFixed(2);
+                        return row.isCODMandatory == 1 ? 
+                        `
+                        <span class="badge badge-success" style="font-family:'monospace">${row.cashOnDeliveryFormatted} €</span>
+                        `:
+                        `
+                        --
+                        `;
+                    },
+                },
+                {
+                    field: "year",
+                    title: "Anno",
+                    align: "center",
+                    sortable: true,
+                    filterControl: "input",
+                    width: 72,
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "borderoNumber",
+                    title: "Bordero",
+                    align: "right",
+                    sortable: true,
+                    filterControl: "input",
+                    width: 72,
+                    formatter: function (value, row, index) {
+                        return `<span style="font-family:'monospace';">${value}</span>`;
+                    },
+                },
+                {
+                    field: "borderoDate",
+                    title: "Data",
+                    align: "center",
+                    sortable: true,
+                    filterControl: "datepicker",
+                    formatter: function (value, row, index) {
+                        return dateToItalian(value);
+                    },
+                },
+                {
+                    field: "printed",
+                    title: "Stampato",
+                    align: "center",
+                    sortable: true,
+                    filterControl: "select",
+                    filterData: 'json:{"1":"Si","0":"No"}',
+                    formatter: function (value, row, index) {
+                        return value==1?
+                            `
+                            <span class="material-icons text-success">check</span>
+                            `:
+                            `
+                            <span class="material-icons text-danger">close</span>
+                            `;
+                    },
+                },
+                {
+                    field: "date_add",
+                    title: "Creato",
+                    align: "center",
+                    sortable: true,
+                    width: 96,
+                    formatter: function (value, row, index) {
+                        return dateToItalian(value);
+                    },
+                },
+                {
+                    field: "date_upd",
+                    title: "Aggiornato",
+                    align: "center",
+                    sortable: true,
+                    width: 96,
+                    formatter: function (value, row, index) {
+                        return dateToItalian(value);
+                    },
+                },
+                {
+                    field: "action",
+                    title: "Azioni",
+                    align: "center",
+                    width: 50,
+                    sortable: false,
+                    formatter: function (value, row, index) {
+                        return `
+                            <div class="d-flex justify-content-center align-items-center gap-2">
+                                <button type="button" class="btn btn-default btn-sm" name="btn-print" title="Stampa" data-id="${row.id_mpnote}" data-action="print">
+                                    <span class="material-icons">print</span>
+                                </button>
+                                <button type="button" class="btn btn-default btn-sm" name="btn-delete" title="Elimina" data-id="${row.id_mpnote}" data-action="delete">
+                                    <span class="material-icons">delete</span>
+                                </button>
+                            </div>
+                        `;
+                    },
+                },
+            ],
+        });
+    }
+</script>
+                                <button type="button" class="btn btn-default btn-sm" name="btn-delete" title="Elimina" data-id="${row.id_mpnote}" data-action="delete">
+                                    <span class="material-icons">delete</span>
+                                </button>
+                            </div>
+                        `;
+                    },
+                },
+            ],
+        });
+    }
+</script>

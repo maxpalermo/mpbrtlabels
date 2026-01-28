@@ -1,0 +1,47 @@
+{
+    "version": "1.0.0",
+    "name": "mpsoft/mpbrtlabels",
+    "description": "Manage Bartolini shipping Labels",
+    "authors": [
+        {
+            "name": "Massimiliano Palermo",
+            "email": "maxx.palermo@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "MpSoft\\MpBrtLabels\\": "src/"
+        },
+        "classmap": [],
+        "exclude-from-classmap": [],
+        "files": []
+    },
+    "scripts": {
+        "cs-fix": "php-cs-fixer fix"
+    },
+    "config": {
+        "platform": {
+            "php": "8.1"
+        },
+        "preferred-install": "dist",
+        "prepend-autoloader": false
+    },
+    "type": "prestashop-module",
+    "extra": {
+        "module": {
+            "name": "BRT Labels",
+            "version": "1.0.0",
+            "author": "Massimiliano Palermo",
+            "author_email": "maxx.palermo@gmail.com",
+            "author_url": "https://www.prestashop.maxpalermo.it",
+            "license": "AFL-3.0",
+            "url": "https://www.prestashop.maxpalermo.it",
+            "readme": "README.md"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

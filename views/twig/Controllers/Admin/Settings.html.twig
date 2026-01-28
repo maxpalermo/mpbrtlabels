@@ -1,0 +1,291 @@
+<form id="form-settings" method="POST" class="fixed-width-50" action="{{ adminControllerUrl }}&page=settings">
+    <div class="panel">
+        <div class="panel-heading">
+            <div class="title">
+                <span class="material-icons mr-2">settings</span>
+                <span class="title">Impostazioni</span>
+            </div>
+        </div>
+        <div class="panel-body">
+            <fieldset id="fieldset_employees" class="mb-4-i">
+                <legend>Operatori abilitati</legend>
+                <div class="form-group fixed-width-huge">
+                    <label for="employees">Elenco operatori</label>
+                    <select name="employees[]" id="employees" class="form-control chosen" multiple>
+                        {% for employee in employees %}
+                            <option value="{{ employee.id_employee }}" {% if employee.id_employee in employees_enabled %}selected{% endif %}>{{ employee.firstname | upper }} {{ employee.lastname | upper }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </fieldset>
+
+            <fieldset id="fieldset_account" class="mb-4-i">
+                <legend>Account</legend>
+                <div class="d-flex justify-content-start align-items-top gap-4 fixed-width-huge">
+                    <div id="account" class="d-grow">
+                        <legend>Reale</legend>
+                        <div class="form-group">
+                            <label>Account ID</label>
+                            <input type="text" class="form-control" name="account_id" id="account_id" value="{{ account_id }}">
+                        </div>
+                        <div class="form-group">
+                            <label>Account PWD</label>
+                            <input type="text" class="form-control" name="account_pwd" id="account_pwd" value="{{ account_pwd }}">
+                        </div>
+                        <div class="form-group fixed-width-huge">
+                            <label>Departure Depot</label>
+                            <input type="text" class="form-control" name="account_departure_depot" id="account_departure_depot" value="{{ account_departure_depot }}">
+                        </div>
+                        <div class="form-group fixed-width-huge">
+                            <label>Codice Cliente</label>
+                            <input type="text" class="form-control" name="account_customer_code" id="account_customer_code" value="{{ account_customer_code }}">
+                        </div>
+                    </div>
+                    <div id="sandbox" class="d-grow">
+                        <legend>Sandbox</legend>
+                        <div class="form-group">
+                            <label>Account ID</label>
+                            <input type="text" class="form-control" name="sandbox_id" id="sandbox_id" value="{{ sandbox_id }}">
+                        </div>
+                        <div class="form-group">
+                            <label>Account PWD</label>
+                            <input type="text" class="form-control" name="sandbox_pwd" id="sandbox_pwd" value="{{ sandbox_pwd }}">
+                        </div>
+                        <div class="form-group fixed-width-huge">
+                            <label>Departure Depot</label>
+                            <input type="text" class="form-control" name="sandbox_departure_depot" id="sandbox_departure_depot" value="{{ sandbox_departure_depot }}">
+                        </div>
+                        <div class="form-group fixed-width-huge">
+                            <label>Codice Cliente</label>
+                            <input type="text" class="form-control" name="sandbox_customer_code" id="sandbox_customer_code" value="{{ sandbox_customer_code }}">
+                        </div>
+                        <div class="form-group">
+                            <div class="form-group">
+                                <label>Attiva sandbox</label>
+                                <div class="form-input">
+                                    <span class="switch prestashop-switch fixed-width-lg">
+                                    <input type="radio" name="sandbox_enabled" id="sandbox_enabled_1" value="1" {% if sandbox_enabled == 1 %}checked{% endif %}>
+                                    <label for="sandbox_enabled_1"><i class="icon icon-2x icon-check text-success"></i></label>
+                                    <input type="radio" name="sandbox_enabled" id="sandbox_enabled_0" value="0" {% if sandbox_enabled == 0 %}checked{% endif %}>
+                                    <label for="sandbox_enabled_0"><i class="icon icon-2x icon-times text-danger"></i></label>
+                                    <a class="slide-button btn"></a>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+            
+            <fieldset id="fieldset_show" class="mb-4-i">
+                <legend>Gestione stati ordine</legend>
+                <div class="form-group fixed-width-huge">
+                    <label>Seleziona gli stati dell'ordine dove visualizzare il pulsante</label>
+                    <select name="orderstates_display[]" id="orderstates_display" class="form-control chosen" multiple>
+                        {% for orderState in orderStates %}
+                            <option value="{{ orderState.id_order_state }}" {% if orderState.id_order_state in orderStates_display %}selected{% endif %}>{{ orderState.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group fixed-width-huge">
+                    <label>Seleziona lo stato dell'ordine da cambiare dopo la stampa dell'etichetta</label>
+                    <select name="orderstate_change" id="orderstate_change" class="form-control chosen">
+                    <option value="">Non cambiare</option>
+                    {% for orderState in orderStates %}
+                            <option value="{{ orderState.id_order_state }}" {% if orderState.id_order_state == orderState_change %}selected{% endif %}>{{ orderState.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </fieldset>
+
+            <fieldset id="fieldset_parameters" class="mb-4-i">
+                <legend>Parametri spedizione</legend>
+                <div class="form-group fixed-width-huge">
+                    <label>Seleziona i moduli per il pagamento alla consegna</label>
+                    <select name="cash_on_delivery_module[]" id="cash_on_delivery_module" class="form-control chosen" multiple>
+                        <option value="">Non cambiare</option>
+                        {% for paymentModule in payment_modules %}
+                            <option value="{{ paymentModule.id_module }}" {% if paymentModule.id_module in cash_on_delivery_module %}selected{% endif %}>{{ paymentModule.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group fixed-width-huge">
+                    <label>Network</label>
+                    <select name="network" id="network" class="form-control chosen">
+                        <option value="" {% if network == '' %}selected{% endif %}>Standard</option>
+                        <option value="D" {% if network == 'D' %}selected{% endif %}>DPD</option>
+                        <option value="E" {% if network == 'E' %}selected{% endif %}>Euro Express</option>
+                        <option value="S" {% if network == 'S' %}selected{% endif %}>Fed</option>
+                    </select>
+                </div>
+                <div class="form-group fixed-width-huge">
+                    <label>Porto</label>
+                    <select name="deliveryFreightTypeCode" id="deliveryFreightTypeCode" class="form-control chosen">
+                        <option value="DAP" {% if deliveryFreightTypeCode == 'DAP' %}selected{% endif %}>Franco</option>
+                        <option value="EXW" {% if deliveryFreightTypeCode == 'EXW' %}selected{% endif %}>Assegnato</option>
+                    </select>
+                </div>
+                <div class="form-group fixed-width-huge">
+                    <label>Servizio</label>
+                    <select name="deliveryServiceType" id="deliveryServiceType" class="form-control chosen">
+                        <option value="">Standard</option>
+                        <option value="E" {% if service_type == 'E' %}selected{% endif %}>Priority</option>
+                        <option value="H" {% if service_type == 'H' %}selected{% endif %}>10:30</option>
+                    </select>
+                </div>
+                <div class="form-group fixed-width-huge">
+                    <label>Natura merci</label>
+                    <input type="text" name="senderParcelType" id="senderParcelType" class="form-control" value="{{ sender_parcel_type }}">
+                </div>
+            </fieldset>
+
+            <fieldset id="fieldset_parameters" class="mb-4-i">
+                <legend>Parametri etichetta</legend>
+                <div class="form-group">
+                    <div class="form-group">
+                        <label>Tipo di etichetta</label>
+                        <div class="form-input">
+                            <span class="switch prestashop-switch fixed-width-lg">
+                            <input type="radio" name="label_type" id="label_type_1" value="1" {% if label_type == 1 %}checked{% endif %}>
+                            <label for="label_type_1">PDF</label>
+                            <input type="radio" name="label_type" id="label_type_0" value="0" {% if label_type == 0 %}checked{% endif %}>
+                            <label for="label_type_0">ZPL</label>
+                            <a class="slide-button btn"></a>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Bordo etichetta</label>
+                        <div class="form-input">
+                            <span class="switch prestashop-switch fixed-width-lg">
+                            <input type="radio" name="label_border" id="label_border_1" value="1" {% if label_border == 1 %}checked{% endif %}>
+                            <label for="label_border_1">SI</label>
+                            <input type="radio" name="label_border" id="label_border_0" value="0" {% if label_border == 0 %}checked{% endif %}>
+                            <label for="label_border_0">NO</label>
+                            <a class="slide-button btn"></a>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Logo etichetta</label>
+                        <div class="form-input">
+                            <span class="switch prestashop-switch fixed-width-lg">
+                            <input type="radio" name="label_logo" id="label_logo_1" value="1" {% if label_logo == 1 %}checked{% endif %}>
+                            <label for="label_logo_1">SI</label>
+                            <input type="radio" name="label_logo" id="label_logo_0" value="0" {% if label_logo == 0 %}checked{% endif %}>
+                            <label for="label_logo_0">NO</label>
+                            <a class="slide-button btn"></a>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Barcode etichetta</label>
+                        <div class="form-input">
+                            <span class="switch prestashop-switch fixed-width-lg">
+                            <input type="radio" name="label_barcode" id="label_barcode_1" value="1" {% if label_barcode == 1 %}checked{% endif %}>
+                            <label for="label_barcode_1">SI</label>
+                            <input type="radio" name="label_barcode" id="label_barcode_0" value="0" {% if label_barcode == 0 %}checked{% endif %}>
+                            <label for="label_barcode_0">NO</label>
+                            <a class="slide-button btn"></a>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="form-group fixed-width-xl">
+                        <label>Offset X</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control text-right" name="offset_x" id="offset_x" value="{{ offset_x|default(0) }}">
+                            <span class="input-group-addon">mm</span>
+                        </div>
+                    </div>
+                    <div class="form-group fixed-width-xl">
+                        <label>Offset Y</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control text-right" name="offset_y" id="offset_y" value="{{ offset_y|default(0) }}">
+                            <span class="input-group-addon">mm</span>
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+        <div class="panel-footer">
+            <button class="btn btn-default pull-right" type="submit" name="submitSaveSettings">
+                <span class="material-icons mr-2">save</span>
+                <span>Salva</span>
+            </button>
+            <button class="btn btn-default pull-right" type="submit" name="submitCreateTables">
+                <span class="material-icons mr-2">storage</span>
+                <span>Crea tabella</span>
+            </button>
+            <button class="btn btn-default pull-right" type="button" id="submitImportFromV16">
+                <span class="material-icons mr-2">upload</span>
+                <span>Importa dati da v1.6</span>
+            </button>
+        </div>
+    </div>
+</form>
+
+
+<script type="text/javascript">
+    async function importFromV16(limit=1000, offset=0)
+    {
+        const formData = new FormData();
+        formData.append('limit', limit);
+        formData.append('offset', offset);
+        formData.append('csrf_token', '{{ csrf_token }}');
+        formData.append('ajax', '1');
+        formData.append('action', 'importFromV16');
+        
+        const response = await fetch("{{ adminControllerUrl | raw }}", {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            showErrorMessage('Errore nella risposta');
+            return false;
+        }
+
+        const result = await response.json();
+        
+        if (result.end == true) {
+            showSuccessMessage('Importazione terminata.');
+            return;
+        }
+
+        if (result.rows > 0) {
+            const downloaded = offset + result.rows;
+
+            if (result.rows < limit) {
+                showSuccessMessage(`Scaricati ${downloaded} record.`);
+                showSuccessMessage("Importazione terminata.");
+            } else {
+                showSuccessMessage(`Scaricati ${limit} record.`);
+            }
+            
+            offset+=1000;
+        
+            importFromV16(limit, offset);
+        } else if (result.errors.length > 0) {
+            showErrorMessage(result.errors.join('\n'));
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnImportV16 = document.getElementById('submitImportFromV16');
+        if (btnImportV16) {
+            btnImportV16.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (!confirm('Sei sicuro di voler importare i dati da v1.6?')) {
+                    showErrorMessage('Operazione annullata');
+                    return false;
+                }
+
+                importFromV16();
+
+                return false;
+            });
+        }
+    });
+</script>
