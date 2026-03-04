@@ -40,22 +40,22 @@ class Parcel {
                 </td>
                 <td data-id="weight" class="text-center">
                     <div class="input-group" style="max-width: 140px;">
-                        <input class="form-control text-right input-row-weight" type="number" step="0.1" name="parcel[weight][]" value="0">
+                        <input class="form-control text-right input-row-weight" type="number" step="0.1" name="parcel[weight][]" value="1">
                         <span class="input-group-addon">kg</span>
                     </div>
                 </td>
                 <td data-id="volume" class="text-center">
                     <div class="input-group" style="max-width: 140px;">
-                        <input class="form-control text-right input-row-volume" type="number" step="0.001" name="parcel[volume][]" value="0" readonly>
+                        <input class="form-control text-right input-row-volume" type="number" step="0.001" name="parcel[volume][]" value="0.001" readonly>
                         <span class="input-group-addon">m³</span>
                     </div>
                 </td>
                 <td class="text-center">
                     <div class="btn-group" style="min-width: 130px;">
-                        <button type="button" class="btn btn-default" data-id="0" data-button-type="save-parcel" title="Salva collo">
+                        <button type="button" class="btn btn-default" data-id="0" data-button-type="saveParcel" title="Salva collo">
                             <i class="material-icons text-success">save</i>
                         </button>
-                        <button type="button" class="btn btn-default" data-id="0" data-button-type="remove-parcel" title="Rimuovi collo">
+                        <button type="button" class="btn btn-default" data-id="0" data-button-type="removeParcel" title="Rimuovi collo">
                             <i class="material-icons text-danger">delete</i>
                         </button>
                     </div>
@@ -131,10 +131,8 @@ class Parcel {
         const width = tr.querySelector("[data-id='width'] input");
         const weight = tr.querySelector("[data-id='weight'] input");
         const volume = tr.querySelector("[data-id='volume'] input");
-        const btnRemove = tr.querySelector("[data-button-type='remove-parcel']");
-        const btnSave = tr.querySelector("[data-button-type='save-parcel']");
-
-        self.calc();
+        const btnRemove = tr.querySelector("[data-button-type='removeParcel']");
+        const btnSave = tr.querySelector("[data-button-type='saveParcel']");
 
         tr.id = `parcel-${self.parcelId}`;
         parcelId.value = self.parcelId;
@@ -142,8 +140,8 @@ class Parcel {
         length.value = self.x;
         height.value = self.y;
         width.value = self.z;
-        weight.value = self.weight;
-        volume.value = self.volume;
+        weight.value = Number(self.weight).toFixed(1);
+        volume.value = Number(self.volume).toFixed(3);
         btnRemove.setAttribute("data-id", self.parcelId);
         btnSave.setAttribute("data-id", self.parcelId);
 

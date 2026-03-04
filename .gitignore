@@ -1,3 +1,6 @@
+# Pdf folder
+views/pdf
+
 # Cache, temp and personal files
 
 /.htaccess

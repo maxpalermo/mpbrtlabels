@@ -42,13 +42,12 @@ class Delete
         $error = curl_error($ch);
         curl_close($ch);
 
-        if (200 == $httpCode && $response) {
+        if ($response) {
             $data = json_decode($response, true);
+        }
 
-            return [
-                'success' => true,
-                'data' => $data,
-            ];
+        if (200 == $httpCode && $data) {
+            return $data;
         }
 
         if (is_array($response) || is_object($response) && empty($error)) {
@@ -59,10 +58,15 @@ class Delete
         }
 
         return [
-            'success' => false,
-            'error' => $error,
-            'httpcode' => $httpCode,
-            'data' => $response ? json_decode($response, true) : [],
+            'deleteResponse' => [
+                'currentTimeUTC' => date('Y-m-d H:i:s'),
+                'executionMessage' => [
+                    'code' => -$httpCode,
+                    'severity' => 'ERROR',
+                    'codeDesc' => 'Errore durante la chiamata API',
+                    'message' => $error
+                ]
+            ],
         ];
     }
 

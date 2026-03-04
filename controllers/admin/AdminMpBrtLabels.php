@@ -21,7 +21,9 @@
 
 use MpSoft\MpBrtLabels\Api\Request\CodPaymentType;
 use MpSoft\MpBrtLabels\Api\Request\RequestData;
+use MpSoft\MpBrtLabels\Helpers\Bordero;
 use MpSoft\MpBrtLabels\Helpers\GetTwigEnvironment;
+use MpSoft\MpBrtLabels\Helpers\Label;
 use MpSoft\MpBrtLabels\Models\ModelBrtLabelsParcel;
 use MpSoft\MpBrtLabels\Models\ModelBrtLabelsRequest;
 use MpSoft\MpBrtLabels\Models\ModelBrtLabelsResponse;
@@ -175,6 +177,7 @@ class AdminMpBrtLabelsController extends ModuleAdminController
                 break;
             case 'labels':
                 $params = [
+                    'isAdminEmployee' => $this->context->employee->isSuperAdmin(),
                     'adminControllerUrl' => $adminControllerUrl,
                     'showImportOrder' => true,
                     'network' => Configuration::get('MPBRTLABELS_NETWORK'),
@@ -622,10 +625,10 @@ class AdminMpBrtLabelsController extends ModuleAdminController
         return ['errors' => $this->errors, 'end' => false, 'offset' => $offset, 'rows' => count($data)];
     }
 
-    public function ajaxProcessImportOrderForLabel()
+    public function ajaxProcessReadOrderRequestParameters()
     {
         $orderId = (int) Tools::getValue('orderId');
-        $order = new \Order($orderId);
+        $order = new Order($orderId);
         if (!Validate::isLoadedObject($order)) {
             return ['error' => 'Ordine non trovato'];
         }
@@ -652,6 +655,8 @@ class AdminMpBrtLabelsController extends ModuleAdminController
             $state->iso_code = '';
         }
 
+        $parcels = $this->getParcels($order->id);
+
         $result = [
             'numericSenderReference' => $order->id,
             'alphanumericSenderReference' => $order->reference,
@@ -674,14 +679,194 @@ class AdminMpBrtLabelsController extends ModuleAdminController
             'deliveryFreightTypeCode' => Configuration::get('MPBRTLABELS_DELIVERY_FREIGHT_TYPE_CODE'),
             'serviceType' => Configuration::get('MPBRTLABELS_SERVICE_TYPE'),
             'pudoId' => '',
-            'parcels' => $this->getParcels($order->id),
+            'parcels' => $parcels,
+            'parcelsHtml' => $this->renderTableRows($parcels),
             'labelExists' => $this->labelExists($order->id),
             'labels' => $this->getLabels($order->id),
         ];
 
+        // Controllo se esiste una request effettuata
+        $request = ModelBrtLabelsRequest::getByNumericSenderReference($order->id);
+        if (Validate::isLoadedObject($request)) {
+            $requestData = $request->createDataJson;
+            if ($requestData) {
+                /*
+                 * "network": "",
+                 * "departureDepot": "102",
+                 * "senderCustomerCode": "1020111",
+                 * "deliveryFreightTypeCode": "DAP",
+                 * "consigneeCompanyName": "MASSIMILIANO PALERMO",
+                 * "consigneeAddress": "CDA PETRONI 77 ",
+                 * "consigneeZIPCode": "87018",
+                 * "consigneeCity": "SAN MARCO ARGENTANO",
+                 * "consigneeProvinceAbbreviation": "CS",
+                 * "consigneeCountryAbbreviationISOAlpha2": "IT",
+                 * "consigneeContactName": "MASSIMILIANO PALERMO",
+                 * "consigneeTelephone": "3925296839",
+                 * "consigneeEMail": "maxx.palermo@gmail.com",
+                 * "consigneeMobilePhoneNumber": "3925296839",
+                 * "notes": "",
+                 * "isAlertRequired": 1,
+                 * "pricingConditionCode": "",
+                 * "serviceType": "",
+                 * "senderParcelType": "ABBIGLIAMENTO",
+                 * "numericSenderReference": "138329",
+                 * "alphanumericSenderReference": "WW-490017",
+                 * "numberOfParcels": "3",
+                 * "weightKG": 1,
+                 * "volumeM3": "0.273",
+                 * "isCODMandatory": "1",
+                 * "codPaymentType": "",
+                 * "cashOnDelivery": "48.520000",
+                 * "codCurrency": "EUR"
+                 */
+
+                $parcels = $this->getParcels($order->id);
+
+                $result = [
+                    'numericSenderReference' => $requestData['numericSenderReference'],
+                    'alphanumericSenderReference' => $requestData['alphanumericSenderReference'],
+                    'senderParcelType' => $requestData['senderParcelType'] ?: 'VARIA',
+                    'consigneeCompanyName' => $requestData['consigneeCompanyName'],
+                    'consigneeAddress' => $requestData['consigneeAddress'],
+                    'consigneeZIPCode' => $requestData['consigneeZIPCode'],
+                    'consigneeCity' => $requestData['consigneeCity'],
+                    'consigneeProvinceAbbreviation' => $requestData['consigneeProvinceAbbreviation'],
+                    'consigneeCountryAbbreviationISOAlpha2' => $requestData['consigneeCountryAbbreviationISOAlpha2'],
+                    'consigneeContactName' => $requestData['consigneeContactName'],
+                    'consigneeTelephone' => $requestData['consigneeTelephone'],
+                    'consigneeMobilePhoneNumber' => $requestData['consigneeMobilePhoneNumber'],
+                    'consigneeEMail' => $requestData['consigneeEMail'],
+                    'notes' => $requestData['notes'],
+                    'isCODMandatory' => (int) $requestData['isCODMandatory'],
+                    'cashOnDelivery' => (float) $requestData['cashOnDelivery'],
+                    'codPaymentType' => $requestData['codPaymentType'],
+                    'network' => $requestData['network'],
+                    'deliveryFreightTypeCode' => $requestData['deliveryFreightTypeCode'],
+                    'serviceType' => $requestData['serviceType'],
+                    'pudoId' => isset($requestData['pudoId']) ? $requestData['pudoId'] : '',
+                    'parcels' => $parcels,
+                    'parcelsHtml' => $this->renderTableRows($parcels),
+                    'labelExists' => $this->labelExists($order->id),
+                    'labels' => $this->getLabels($order->id),
+                ];
+            }
+        }
+
         return [
             'success' => true,
             'params' => $result,
+        ];
+    }
+
+    public function renderTableRows($parcels)
+    {
+        $twig = new GetTwigEnvironment($this->module->name);
+        $template = $twig->load('Controllers/ParcelRows.html.twig');
+
+        return $template->render([
+            'parcels' => $parcels,
+        ]);
+    }
+
+    public function ajaxProcessSaveParcel()
+    {
+        $parcel = json_decode(Tools::getValue('parcel'), 1);
+        if (!is_array($parcel)) {
+            return [
+                'success' => false,
+                'error' => 'Dati parcel non validi'
+            ];
+        }
+
+        $model = new ModelBrtLabelsParcel($parcel['id']);
+        $model->hydrate($parcel);
+        if (Validate::isLoadedObject($model)) {
+            $res = $model->update();
+        } else {
+            $res = $model->add();
+        }
+
+        return [
+            'success' => (bool) $res,
+            'parcelId' => $model->id
+        ];
+    }
+
+    public function ajaxProcessSaveLabelField()
+    {
+        $mode = (string) Tools::getValue('mode', 'write');
+        $orderId = (int) (Tools::getValue('orderId') ?: Tools::getValue('id_order') ?: Tools::getValue('id-order'));
+        if (!$orderId) {
+            return ['success' => false, 'error' => 'ID ordine mancante'];
+        }
+
+        $order = new Order($orderId);
+        if (!Validate::isLoadedObject($order)) {
+            return ['success' => false, 'error' => 'Ordine non trovato'];
+        }
+
+        $year = (int) date('Y');
+        $request = ModelBrtLabelsRequest::getByNumericSenderReference($orderId, $year);
+        if (!$request) {
+            $request = new ModelBrtLabelsRequest();
+            $request->year = $year;
+            $request->orderId = (int) $orderId;
+            $request->numericSenderReference = (string) $orderId;
+            $request->alphanumericSenderReference = (string) $order->reference;
+            $request->isLabelRequired = 1;
+            $request->accountJson = [];
+            $request->labelParametersJson = [];
+            $request->parcelsJson = [];
+            $request->createDataJson = [];
+        }
+
+        if (!is_array($request->createDataJson)) {
+            $request->createDataJson = [];
+        }
+
+        if ($mode === 'read') {
+            $name = (string) Tools::getValue('name');
+            $value = $name && isset($request->createDataJson[$name]) ? $request->createDataJson[$name] : '';
+            return ['success' => true, 'value' => $value];
+        }
+
+        $valuesJson = Tools::getValue('values');
+        if ($valuesJson) {
+            $decoded = json_decode($valuesJson, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $k => $v) {
+                    $request->createDataJson[(string) $k] = $v;
+                }
+            }
+        } else {
+            $name = (string) Tools::getValue('name');
+            $value = Tools::getValue('value');
+            if ($name !== '') {
+                $request->createDataJson[$name] = $value;
+            }
+        }
+
+        if (array_key_exists('isCODMandatory', $request->createDataJson)) {
+            $request->isCODMandatory = (bool) (int) $request->createDataJson['isCODMandatory'];
+        }
+        if (array_key_exists('cashOnDelivery', $request->createDataJson)) {
+            $request->cashOnDelivery = (float) $request->createDataJson['cashOnDelivery'];
+        }
+
+        try {
+            if ($request->id) {
+                $request->update();
+            } else {
+                $request->add();
+            }
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+
+        return [
+            'success' => true,
+            'value' => Tools::getValue('value', ''),
         ];
     }
 
@@ -784,6 +969,279 @@ class AdminMpBrtLabelsController extends ModuleAdminController
         ];
     }
 
+    protected function buildBorderoDataFromResponses(array $responses): array
+    {
+        $customerCode = (string) Configuration::get('MPBRTLABELS_ACCOUNT_CUSTOMER_CODE');
+        $senderCompanyName = '';
+        if (!empty($responses) && isset($responses[0]['senderCompanyName'])) {
+            $senderCompanyName = (string) $responses[0]['senderCompanyName'];
+        }
+
+        $company = trim(sprintf('[%s] %s', $customerCode, $senderCompanyName));
+        if ($company === '[]') {
+            $company = '[BRT]';
+        }
+
+        $rows = [];
+        $totSpedizioni = 0;
+        $totColli = 0;
+        $totContrassegniOrdini = 0;
+        $importoContrassegni = 0.0;
+        $totPeso = 0.0;
+        $totVolume = 0.0;
+
+        foreach ($responses as $r) {
+            $totSpedizioni++;
+            $colli = (int) ($r['numberOfParcels'] ?? 0);
+            $peso = (float) ($r['weightKG'] ?? 0);
+            $vol = (float) ($r['volumeM3'] ?? 0);
+            $totColli += $colli;
+            $totPeso += $peso;
+            $totVolume += $vol;
+
+            $cassa = 0.0;
+            if ((int) ($r['isCODMandatory'] ?? 0) === 1) {
+                $cassa = (float) ($r['cashOnDelivery'] ?? 0);
+                if ($cassa > 0) {
+                    $totContrassegniOrdini++;
+                    $importoContrassegni += $cassa;
+                }
+            }
+
+            $segnacolli = '';
+            if (!empty($r['labels'])) {
+                $labels = is_array($r['labels']) ? $r['labels'] : json_decode($r['labels'], true);
+                if (is_array($labels)) {
+                    $labelArr = reset($labels);
+                    if (is_array($labelArr) && !empty($labelArr[0])) {
+                        // $segnacolli = (string) ($labelArr[0]['trackingByParcelID'] ?? ($labelArr[0]['parcelID'] ?? ''));
+                        $segnacolli = $r['parcelNumberFrom'] . "\n" . $r['parcelNumberTo'];
+                    }
+                }
+            }
+
+            $rows[] = [
+                'destinatario' => (string) ($r['consigneeCompanyName'] ?? ''),
+                'indirizzo' => trim((string) ($r['consigneeAddress'] ?? '')) . "\n" . trim(sprintf('%s %s - %s', (string) ($r['consigneeZIPCode'] ?? ''), (string) ($r['consigneeCity'] ?? ''), (string) ($r['consigneeProvinceAbbreviation'] ?? ''))),
+                'rif_num' => (string) ($r['numericSenderReference'] ?? ''),
+                'cod_bolla' => (string) ($r['alphanumericSenderReference'] ?? ''),
+                'importo_cassa' => $cassa,
+                'colli' => $colli,
+                'peso' => $peso,
+                'volume' => $vol,
+                'segnacolli' => $segnacolli,
+            ];
+        }
+
+        return [
+            'header' => [
+                'company' => $company,
+                'generatedAt' => date('d/m/Y H:i:s'),
+            ],
+            'rows' => $rows,
+            'summary' => [
+                'totale_spedizioni' => $totSpedizioni,
+                'totale_colli' => $totColli,
+                'totale_contrassegni_ordini' => $totContrassegniOrdini,
+                'importo_contrassegni' => $importoContrassegni,
+                'totale_peso' => $totPeso,
+                'totale_volume' => $totVolume,
+            ],
+        ];
+    }
+
+    protected function fetchResponsesByRefs(array $items): array
+    {
+        $yearDefault = (int) date('Y');
+        $db = Db::getInstance();
+        $out = [];
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $nsr = isset($item['numericSenderReference']) ? (int) $item['numericSenderReference'] : 0;
+            $year = isset($item['year']) ? (int) $item['year'] : $yearDefault;
+            if ($nsr <= 0) {
+                continue;
+            }
+
+            $sql = new DbQuery();
+            $sql
+                ->select('a.*')
+                ->select('b.isCODMandatory')
+                ->select('b.cashOnDelivery')
+                ->from(ModelBrtLabelsResponse::$definition['table'], 'a')
+                ->leftJoin(ModelBrtLabelsRequest::$definition['table'], 'b', 'a.numericSenderReference = b.numericSenderReference AND a.year=b.year')
+                ->where('a.numericSenderReference = ' . (int) $nsr)
+                ->where('a.year = ' . (int) $year);
+
+            $row = $db->getRow($sql);
+            if ($row) {
+                $out[] = $row;
+            }
+        }
+
+        return $out;
+    }
+
+    public function ajaxProcessPrintParcels()
+    {
+        $itemsJson = Tools::getValue('items');
+        $items = json_decode($itemsJson, true);
+        if (!is_array($items)) {
+            $items = [];
+        }
+
+        $responses = $this->fetchResponsesByRefs($items);
+        if (empty($responses)) {
+            return [
+                'success' => false,
+                'error' => 'Nessun dato trovato per i riferimenti richiesti',
+            ];
+        }
+
+        $data = $this->buildBorderoDataFromResponses($responses);
+        $pdfBinary = Bordero::render($data);
+
+        return [
+            'success' => true,
+            'pdfBase64' => base64_encode($pdfBinary),
+            'filename' => 'bordero_' . date('YmdHis') . '.pdf',
+        ];
+    }
+
+    public function ajaxProcessPrintMultipleLabels()
+    {
+        $labels = json_decode(Tools::getValue('items'), true);
+        if (!is_array($labels)) {
+            $labels = [];
+        }
+
+        $stream = Label::getLabelsStream($labels);
+
+        return [
+            'success' => true,
+            'stream' => $stream,
+            'filename' => 'etichette_' . date('YmdHis') . '.pdf',
+        ];
+    }
+
+    public function ajaxProcessPrintLastBordero()
+    {
+        $update = true;
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql
+            ->select('borderoNumber')
+            ->select('year')
+            ->from(ModelBrtLabelsResponse::$definition['table'])
+            ->where('borderoNumber IS NOT NULL')
+            ->orderBy('borderoDate DESC')
+            ->orderBy(ModelBrtLabelsResponse::$definition['primary'] . ' DESC');
+
+        $last = $db->getRow($sql);
+        if (!$last || empty($last['borderoNumber'])) {
+            $borderoNumber = 1;
+        } else {
+            $borderoNumber = (int) $last['borderoNumber'] + 1;
+        }
+
+        $year = (int) ($last['year'] ?? date('Y'));
+
+        $sql2 = new DbQuery();
+        $sql2
+            ->select('a.*')
+            ->select('b.isCODMandatory')
+            ->select('b.cashOnDelivery')
+            ->from(ModelBrtLabelsResponse::$definition['table'], 'a')
+            ->leftJoin(ModelBrtLabelsRequest::$definition['table'], 'b', 'a.numericSenderReference = b.numericSenderReference AND a.year=b.year')
+            ->where('a.printed = 0')
+            ->where('a.year = ' . (int) $year)
+            ->orderBy('a.numericSenderReference ASC');
+
+        $responses = $db->executeS($sql2);
+
+        if (empty($responses)) {
+            // Stampo l'ultimo borderò
+            $borderoNumber--;
+
+            $sql3 = new DbQuery();
+            $sql3
+                ->select('a.*')
+                ->select('b.isCODMandatory')
+                ->select('b.cashOnDelivery')
+                ->from(ModelBrtLabelsResponse::$definition['table'], 'a')
+                ->leftJoin(ModelBrtLabelsRequest::$definition['table'], 'b', 'a.numericSenderReference = b.numericSenderReference AND a.year=b.year')
+                ->where('a.printed = 1')
+                ->where('a.year = ' . (int) $year)
+                ->where('a.borderoNumber = ' . (int) $borderoNumber)
+                ->orderBy('a.numericSenderReference ASC');
+
+            $responses = $db->executeS($sql3);
+            $update = false;
+        }
+
+        $data = $this->buildBorderoDataFromResponses($responses);
+        $pdfBinary = Bordero::render($data);
+
+        if ($update) {
+            $update = $this->updateLastBordero($borderoNumber, $year);
+        } else {
+            $update = [
+                'updated' => 0,
+                'total' => 0,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'pdfBase64' => base64_encode($pdfBinary),
+            'filename' => 'bordero_' . date('YmdHis') . '.pdf',
+            'borderoNumber' => $borderoNumber,
+            'year' => $year,
+            'updated' => $update['updated'],
+            'total' => $update['total'],
+        ];
+    }
+
+    protected function updateLastBordero($borderoNumber, $year)
+    {
+        $table = ModelBrtLabelsResponse::$definition['table'];
+        $primary = ModelBrtLabelsResponse::$definition['primary'];
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql
+            ->select($primary)
+            ->from($table)
+            ->where('printed = 0')
+            ->where('year = ' . (int) $year)
+            ->orderBy($primary . ' ASC');
+
+        $response = $db->executeS($sql);
+        $total = 0;
+        $updated = 0;
+        if ($response) {
+            $total = count($response);
+            foreach ($response as $row) {
+                $model = new ModelBrtLabelsResponse((int) $row[$primary]);
+                if (!Validate::isLoadedObject($model)) {
+                    continue;
+                }
+                $model->borderoNumber = $borderoNumber;
+                $model->borderoDate = date('Y-m-d H:i:s');
+                $model->printed = 1;
+                $model->update();
+                $updated++;
+            }
+        }
+
+        return [
+            'total' => $total,
+            'updated' => $updated,
+        ];
+    }
+
     protected function labelExists($numericSenderReference)
     {
         $db = Db::getInstance();
@@ -814,7 +1272,7 @@ class AdminMpBrtLabelsController extends ModuleAdminController
         $db = Db::getInstance();
         $sql = new DbQuery();
         $sql
-            ->select('*')
+            ->select('*, ' . ModelBrtLabelsParcel::$definition['primary'] . ' as `id`')
             ->from(ModelBrtLabelsParcel::$definition['table'])
             ->where("PECOD LIKE '{$id_order}%'")
             ->orderBy(ModelBrtLabelsParcel::$definition['primary']);
@@ -826,15 +1284,110 @@ class AdminMpBrtLabelsController extends ModuleAdminController
 
     public function ajaxProcessSendRequest()
     {
-        $form = Tools::getAllValues();
-        $orderId = (int) $form['order_id'];
-        $createData = $form['createData'] ?? null;
-        $parcels = $form['parcel'];
+        $orderId = (int) Tools::getValue('orderId');
+        $createData = json_decode(Tools::getValue('createData'), 1);
+        $parcels = json_decode(Tools::getValue('parcels', '[]'), 1);
+        $showRequest = (int) Tools::getValue('showRequestData');
+
+        if (isset($createData['changeOrderState'])) {
+            $changeOrderState = (int) $createData['changeOrderState'];
+            unset($createData['changeOrderState']);
+        }
+
+        if ($labels = $this->existsResponse($createData)) {
+            return [
+                'status' => true,
+                'executionMessage' => [
+                    'code' => 0,
+                    'severity' => 'INFO',
+                    'codeDesc' => 'RICHIESTA GIÀ INVIATA',
+                    'message' => 'Richiesta già inviata. Anteprima etichette in corso',
+                ],
+                'labels' => $labels,
+                'numericSenderReference' => $createData['numericSenderReference'],
+            ];
+        }
 
         $requestData = new RequestData($orderId, $createData, $parcels, (int) date('Y'));
+
+        if ($showRequest) {
+            exit(json_encode($requestData->showRequestData()));
+        }
+
         $result = $requestData->send();
 
+        if ($changeOrderState) {
+            $id_order_state = (int) Configuration::get('MPBRTLABELS_ORDERSTATE_CHANGE');
+            $id_employee = (int) $this->context->employee->id;
+            $order = new Order($orderId);
+            if ($id_order_state && $id_order_state != $order->current_state) {
+                $order->setCurrentState($id_order_state, $id_employee);
+            }
+        }
+
         return $result;
+    }
+
+    private function existsResponse($data)
+    {
+        $numericSenderReference = $data['numericSenderReference'] ?? 0;
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql
+            ->select('labels')
+            ->from('brt_labels_response')
+            ->where("numericSenderreference = '" . pSQL($numericSenderReference) . "'")
+            ->where('year = ' . (int) date('Y'))
+            ->where('executionMessage IS NOT NULL')
+            ->where("executionMessage <> ''")
+            ->where('JSON_VALID(executionMessage)')
+            ->where("CAST(JSON_UNQUOTE(JSON_EXTRACT(executionMessage, '\$.code')) AS SIGNED) >= 0");
+        $labels = $db->getValue($sql);
+        if ($labels) {
+            return json_decode($labels, 1);
+        }
+
+        return false;
+    }
+
+    public function ajaxProcessAddEmptyRow()
+    {
+        $pecod = Tools::getValue('pecod');
+        $orderId = (int) Tools::getValue('orderId');
+
+        $twig = new GetTwigEnvironment($this->module->name);
+        $twig->load('@ModuleTwig/Controllers/ParcelRow');
+
+        $pecodSplit = explode('-', $pecod);
+        $count = (int) $pecodSplit[1] + 1;
+
+        $adminControllerUrl = $this->context->link->getAdminLink($this->controller_name);
+
+        $data = [
+            // Contesto pagina
+            'id_order' => (int) $orderId,  // usato ovunque (parametri ajax, template, ecc.)
+            'adminControllerUrl' => (string) $adminControllerUrl,  // finisce in JS: MPBRTLABELS_ENDPOINT
+            'endpoint' => (string) $adminControllerUrl,  // usato nei table-input: data-endpoint="{{ endpoint|raw }}"
+            // Dati colli (parcels table)
+            'parcel' => [
+                // lista di colli; ogni elemento viene usato in ParcelRow.html.twig
+                'id_brt_labels_parcel' => 0,  // attributo <tr data-id="...">
+                'id' => 0,  // usato come data-param-id-parcel="{{ parcel.id }}"
+                'PECOD' => (string) ($orderId . '-' . $count),  // value pecod
+                'X' => 0,  // nel twig: value = X/10 (cm)
+                'Y' => 0,  // nel twig: value = Y/10 (cm)
+                'Z' => 0,  // nel twig: value = Z/10 (cm)
+                'PPESO' => 0,  // value peso
+                'PVOLU' => 0,  // value volume (m3) -> input soft-disabled
+            ],
+        ];
+
+        $row = $twig->render($data);
+
+        return [
+            'success' => true,
+            'html' => $row,
+        ];
     }
 
     public function ajaxProcessDeleteRequest()
@@ -842,7 +1395,8 @@ class AdminMpBrtLabelsController extends ModuleAdminController
         $force = true;
         $numericSenderReference = (int) Tools::getValue('numericSenderReference');
         $alphanumericSenderReference = Tools::getValue('alphanumericSenderReference');
-        $model = ModelBrtLabelsRequest::getByNumericSenderReference($numericSenderReference);
+        $year = (int) Tools::getValue('year');
+        $model = ModelBrtLabelsRequest::getByNumericSenderReference($numericSenderReference, $year);
 
         if (!\Validate::isLoadedObject($model) && !$force) {
             return [
@@ -855,14 +1409,16 @@ class AdminMpBrtLabelsController extends ModuleAdminController
             $model = new ModelBrtLabelsRequest();
             $model->numericSenderReference = $numericSenderReference;
             $model->alphanumericSenderReference = $alphanumericSenderReference;
+            $model->year = $year;
         }
 
-        $delete = $model->delete($force);
+        $response = $model->delete($force);
 
         return [
-            'success' => $delete,
-            'params' => $numericSenderReference,
+            'numericSenderReference' => $numericSenderReference,
             'alphanumericSenderReference' => $alphanumericSenderReference,
+            'year' => $year,
+            'response' => $response,
         ];
     }
 

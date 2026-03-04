@@ -105,21 +105,21 @@ class ModelBrtLabelsRequest extends \ObjectModel
         return parent::update($nullValues);
     }
 
-    public function delete($force = false)
+    public function delete($force = false): array
     {
         $numericSenderReference = $this->numericSenderReference;
         $alphanumericSenderReference = $this->alphanumericSenderReference;
 
         $delete = Delete::sendRequest($numericSenderReference, $alphanumericSenderReference);
-        if ($delete['success']) {
-            return parent::delete();
+        if (isset($delete['deleteResponse']) && ($delete['deleteResponse']['executionMessage']['code'] == 0 || $force)) {
+            parent::delete();
+            $response = ModelBrtLabelsResponse::getByNumericSenderReference($numericSenderReference);
+            if (\Validate::isLoadedObject($response)) {
+                $response->delete();
+            }
         }
 
-        if ($force) {
-            return parent::delete();
-        }
-
-        return false;
+        return $delete;
     }
 
     /**

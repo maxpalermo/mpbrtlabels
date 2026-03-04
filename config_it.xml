@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<module>
+    <name>mpbrtlabels</name>
+    <displayName><![CDATA[BRT Stampa segnacolli e Border&ograve;]]></displayName>
+    <version><![CDATA[0.0.2]]></version>
+    <description><![CDATA[Invio spedizioni tramite API BRT.]]></description>
+    <author><![CDATA[Massimiliano Palermo]]></author>
+    <tab><![CDATA[shipping_logistics]]></tab>
+    <is_configurable>0</is_configurable>
+    <need_instance>0</need_instance>
+</module>

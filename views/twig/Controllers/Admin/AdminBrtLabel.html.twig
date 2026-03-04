@@ -1,0 +1,62 @@
+<link href="{{ asset('css/style.css') }}" rel="stylesheet" />
+<link href="{{ asset('css/brt-label-dialog.css') }}" rel="stylesheet" />
+<script src="{{ asset('js/PdfLib/pdf-lib.min.js') }}"></script>
+<script src="{{ asset('js/PdfMergerClass.js') }}"></script>
+<script src="{{ asset('js/moveGrowlContainer.js') }}"></script>
+<script src="{{ asset('js/fixBootstrapTable.js') }}"></script>
+<script src="{{ asset('js/components/table-input.js') }}"></script>
+<script src="{{ asset('js/BrtLabelFormWrapper.js') }}"></script>
+
+{% include '@Module/views/twig/Controllers/BrtLabel.html.twig' %}
+
+<script>
+    const MPBRTLABELS_ENDPOINT = "{{ endpoint | raw }}";
+    const MPBRTLABELS_ORDER_ID = "{{ id_order }}";
+    const MPBRTLABELS_ADMINORDERS = "{{ isAdminOrdersPage }}"
+    let DialogManager = null;
+    
+    function showBrtLabelDialog()
+    {
+        window.BrtLabelForm.showBrtLabelDialog();
+    }
+
+    function hideBrtLabelDialog()
+    {
+        window.BrtLabelForm.hideBrtLabelDialog();
+    }
+
+    function addEmptyRow()
+    {
+        const orderId = MPBRTLABELS_ORDER_ID;
+        window.BrtLabelForm.addEmptyRow(orderId);
+    }
+
+    function calcVolume(btn)
+    {
+        window.BrtLabelForm.calcVolume(btn);
+    }
+
+    function calcTotals()
+    {
+        window.BrtLabelForm.calcTotals();
+    }
+
+    async function saveParcel(btn)
+    {
+        window.BrtLabelForm.saveParcel(btn);
+    }
+
+    async function deleteParcel(btn)
+    {
+        window.BrtLabelForm.deleteParcel(btn);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const form = document.getElementById('form-brtlabel');
+        if (form && window.BrtLabelFormWrapper) {
+            window.BrtLabelForm = new BrtLabelFormWrapper(MPBRTLABELS_ENDPOINT, MPBRTLABELS_ORDER_ID, 'saveLabelField', form, MPBRTLABELS_ADMINORDERS, false);
+        }
+    });
+</script>
+
+

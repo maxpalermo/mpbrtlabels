@@ -24,15 +24,13 @@ if (!defined('_PS_VERSION_')) {
 
 require_once dirname(__FILE__) . '/vendor/autoload.php';
 
+use MpSoft\MpBrtLabels\Api\Request\CodPaymentType;
 use MpSoft\MpBrtLabels\Helpers\GetTwigEnvironment;
 use MpSoft\MpBrtLabels\Models\ModelBrtLabelsParcel;
 use MpSoft\MpBrtLabels\Models\ModelBrtLabelsRequest;
-use MpSoft\MpBrtLabels\Models\ModelBrtShipmentBordero;
-use MpSoft\MpBrtLabels\Models\ModelBrtShipmentRequest;
-use MpSoft\MpBrtLabels\Models\ModelBrtShipmentResponse;
 use MpSoft\MpBrtLabels\Models\ModelBrtShipmentResponseLabel;
 use PrestaShop\PrestaShop\Adapter\SymfonyContainer;
-use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\HtmlColumn;
+use PrestaShop\PrestaShop\Core\Grid\Action\Type\SimpleGridAction;
 use PrestaShop\PrestaShop\Core\Grid\Record\RecordCollection;
 use PrestaShop\PrestaShop\Core\Module\WidgetInterface;
 
@@ -68,13 +66,11 @@ class MpBrtLabels extends Module implements WidgetInterface
     public function renderWidget($hookName, array $configuration)
     {
         switch ($hookName) {
-            case 'displayAdminOrderTop':
-                break;
-            case 'displayAdminEndContent':
-                break;
-            default:
-                break;
+            case 'displayDashboardToolbarTopMenu':
+                return $this->hookDisplayDashboardToolbarTopMenu($configuration);
         }
+
+        return '';
     }
 
     public function install()
@@ -88,6 +84,7 @@ class MpBrtLabels extends Module implements WidgetInterface
             'actionAdminControllerSetMedia',
             'displayAdminOrderTop',
             'displayAdminEndContent',
+            'displayDashboardToolbarTopMenu',
         ];
 
         return $parentInstall &&
@@ -242,15 +239,64 @@ class MpBrtLabels extends Module implements WidgetInterface
      */
     public function hookDisplayAdminOrderTop($params)
     {
-        $frontControllerUrl = self::getFrontControllerUrl();
-        return <<<JS
-                <script>
-                    document.addEventListener('DOMContentLoaded', function() {
-                        console.log('MODULE MPBRTLABELS - hookDisplayAdminOrderTop - DOMContentLoaded');
-                        const MPBRTLABELS_FRONTCONTROLLERURL = "{$frontControllerUrl}";
-                    });
-                </script>
-            JS;
+        return '';
+    }
+
+    public function hookDisplayDashboardToolbarTopMenu($params)
+    {
+        if (!$this->isAdminOrderPageController()) {
+            return;
+        }
+
+        $order = new Order(Tools::getValue('id_order', 0));
+        if (!Validate::isLoadedObject($order)) {
+            return;
+        }
+
+        $currentState = $order->getCurrentState();
+        $showButtonOnOrderStates = json_decode(Configuration::get('MPBRTLABELS_ORDERSTATES_DISPLAY'));
+        $isAdminEmployee = $this->context->employee->isSuperAdmin();
+
+        if (!$isAdminEmployee && !in_array($currentState, $showButtonOnOrderStates)) {
+            return '';
+        }
+
+        if ($isAdminEmployee || in_array($currentState, $showButtonOnOrderStates)) {
+            return '
+                <button type="button" class="btn btn-danger mr-3 ml-3" id="btnShowBrtDialogNew" onclick="showBrtLabelDialog()">
+                    <span class="material-icons">label</span>
+                    <span>Etichetta Bartolini</span>
+                </button>
+            ';
+        }
+
+        return '';
+    }
+
+    protected function isAdminOrdersListController()
+    {
+        $controller = Tools::getValue('controller');
+        if (!preg_match('/AdminOrders/i', $controller)) {
+            return false;
+        }
+        if (Tools::getValue('id_order')) {
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function isAdminOrderPageController()
+    {
+        $controller = Tools::getValue('controller');
+        if (!preg_match('/AdminOrders/i', $controller)) {
+            return false;
+        }
+        if (!Tools::getValue('id_order')) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -258,21 +304,15 @@ class MpBrtLabels extends Module implements WidgetInterface
      */
     public function hookActionOrderGridDefinitionModifier(array $params)
     {
-        return;
         $definition = $params['definition'];
-        /** @var PrestaShop\PrestaShop\Core\Grid\Column\ColumnCollection */
-        $columns = $definition->getColumns();
 
-        $columnBrtLabel = new HtmlColumn('numericSenderReference');
-        $columnBrtLabel
-            ->setName($this->l('BRT'))
-            ->setOptions([
-                'field' => 'numericSenderReference',
-                'sortable' => false,
-                'clickable' => false,
-            ]);
-
-        $columns->addBefore('date_add', $columnBrtLabel);
+        // Add a button in the grid actions bar (top-right, near Export)
+        $gridActions = $definition->getGridActions();
+        $gridActions->add(
+            (new SimpleGridAction('mpbrtlabels_open'))
+                ->setName('BRTLABELS_BTN_OPEN')
+                ->setIcon('local_shipping')
+        );
     }
 
     /**
@@ -351,94 +391,32 @@ class MpBrtLabels extends Module implements WidgetInterface
      */
     public function hookDisplayAdminEndContent($params)
     {
-        return '';
-        $altern = (int) $params['altern'] ?? 0;
-
-        $id_order = (int) Tools::getValue('id_order');
-        $controller = Tools::getValue('controller');
-        $isAdminOrdersController = preg_match('/AdminOrders/i', $controller);
-        $isModuleAdminController = preg_match('/AdminModules/i', $controller);
-        $baseUrl = $this->context->link->getBaseLink();
-        $adminController = $this->context->link->getAdminLink('AdminBrtBordero');
-
-        if (!$isAdminOrdersController && !$isModuleAdminController) {
+        if (!$this->isAdminOrderPageController()) {
             return '';
         }
 
-        // Pagina elenco ordini
-        if ($isAdminOrdersController && !$id_order) {
-            $script = <<<JS
-                    <script type="text/javascript">
-                        const altern = {$altern};
-                        const orderId = {$id_order};
-                        const baseUrl = "{$baseUrl}";
-                        const adminController = "{$adminController}";
-                    </script>
-                JS;
+        $controller = Tools::getValue('controller');
+        $endpoint = $this->context->link->getAdminLink('AdminMpBrtLabels');
+        $id_order = (int) Tools::getValue('id_order');
 
-            return $script;
-        }
+        $params = [
+            'isAdminEmployee' => $this->context->employee->isSuperAdmin(),
+            'endpoint' => $endpoint,
+            'showImportOrder' => true,
+            'network' => Configuration::get('MPBRTLABELS_NETWORK'),
+            'deliveryFreightTypeCode' => (int) Configuration::get('MPBRTLABELS_DELIVERY_FREIGHT_TYPE_CODE'),
+            'serviceType' => (int) Configuration::get('MPBRTLABELS_SERVICE_TYPE'),
+            'orderStateChange' => $this->getOrderStateChange(),
+            'codPaymentTypeOptions' => (new CodPaymentType(null))->getCodPaymentAssociativeArray(),
+            'sandbox_enabled' => Configuration::get('MPBRTLABELS_SANDBOX_ENABLED'),
+            'id_order' => $id_order,
+            'isAdminOrdersPage' => preg_match('/AdminOrders/i', $controller),
+        ];
+        $twig = new GetTwigEnvironment($this->name);
+        $twig->load('@ModuleTwig/Controllers/Admin/AdminBrtLabel');
+        $html = $twig->render($params);
 
-        // Pagina Dettagli ordine
-        if ($isAdminOrdersController && $id_order > 0) {
-            $script = <<<JS
-                    <script type="text/javascript">
-                        const orderId = {$id_order};
-                        const mpbrtapishipment_baseUrl = "{$baseUrl}";
-                        const mpbrtapishipment_adminController = "{$adminController}";
-                        let mpbrtapishipment_ApiShipment = null;
-                    </script>
-                JS;
-
-            $labelFormdata = $this->getBrtLabelFormData($id_order);
-
-            if ($labelFormdata) {
-                $data = json_encode($labelFormdata);
-            } else {
-                $data = json_encode([]);
-            }
-
-            $script = <<<JS
-                    <script type="text/javascript">
-                        const orderId = {$id_order};
-                        const mpbrtapishipment_baseUrl = "{$baseUrl}";
-                        const mpbrtapishipment_adminController = "{$adminController}";
-                        const mpbrtapishipment_labelFormdata = {$data};
-
-                        console.log("CONFIG VALUES:", mpbrtapishipment_labelFormdata);
-                    </script>
-                JS;
-
-            $twig = new GetTwigEnvironment($this->name);
-            $template = $twig->load('@Module/views/twig/label/label.html.twig');
-            $html = $template->render([
-                'orderStates' => $this->getOrderStates(),
-                'defaultChangeOrderState' => 0,
-                'brt_environment' => 'SANDBOX',
-                'showOrderIdSearch' => false,
-            ]);
-
-            return $script . $html;
-        }
-
-        // Pagina configurazione modulo
-        if ($isModuleAdminController) {
-            $script = <<<JS
-                    <script type="text/javascript">
-                        document.addEventListener('DOMContentLoaded', () => {
-                            console.log("DOMCONTENT Loaded: Applying Select2");
-                            \$(".select2").select2({
-                                language: "it",
-                                width: '100%'
-                            });
-                        });
-                    </script>
-                JS;
-
-            return $script;
-        }
-
-        return '';
+        return $html;
     }
 
     public function getBrtLabelFormData($orderId)
@@ -457,5 +435,18 @@ class MpBrtLabels extends Module implements WidgetInterface
         $configValues['formData'] = $formLabel;
 
         return $configValues;
+    }
+
+    protected function getOrderStateChange()
+    {
+        $id_lang = (int) Context::getContext()->language->id;
+        $id_order_state = (int) Configuration::get('MPBRTLABELS_ORDERSTATE_CHANGE');
+
+        $orderState = new OrderState($id_order_state, $id_lang);
+        if (\Validate::isLoadedObject($orderState)) {
+            return Tools::strtoupper($orderState->name);
+        }
+
+        return 'Errore: Non Impostato';
     }
 }

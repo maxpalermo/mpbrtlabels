@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JS: factory che restituisce un event handler (pattern per add/removeEventListener)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; margin: 24px; max-width: 980px; }
+    h1 { font-size: 22px; margin: 0 0 12px 0; }
+    h2 { font-size: 18px; margin: 22px 0 8px 0; }
+    p { margin: 8px 0; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    pre { background: #0b1020; color: #e6edf3; padding: 14px; border-radius: 10px; overflow: auto; }
+    .note { border: 1px solid #e5e7eb; background: #f9fafb; padding: 12px 14px; border-radius: 10px; }
+    .bad { border-left: 6px solid #ef4444; }
+    .good { border-left: 6px solid #22c55e; }
+    .warn { border-left: 6px solid #f59e0b; }
+  </style>
+</head>
+<body>
+  <h1>Factory che restituisce un event handler (pattern per gestire meglio gli eventi)</h1>
+
+  <p>
+    Quando usi <code>addEventListener</code> e <code>removeEventListener</code>, la regola pi importante :
+    <strong>per rimuovere un listener devi passare la stessa identica funzione (stessa reference) che avevi aggiunto</strong>.
+  </p>
+
+  <h2>1) Il problema: arrow inline = impossibile fare remove</h2>
+  <div class="note bad">
+    <p>
+      Questo <strong>non</strong> rimuove niente, perch la arrow  una funzione nuova:
+    </p>
+    <pre><code>btn.addEventListener('click', () =&gt; {
+  console.log('click');
+});
+
+btn.removeEventListener('click', () =&gt; {
+  console.log('click');
+}); // ❌ non funziona (reference diversa)</code></pre>
+  </div>
+
+  <h2>2) Soluzione base: funzione nominata (reference stabile)</h2>
+  <div class="note good">
+    <pre><code>function onClick(e) {
+  e.preventDefault();
+  console.log('click');
+}
+
+btn.addEventListener('click', onClick);
+btn.removeEventListener('click', onClick); // ✅ funziona</code></pre>
+  </div>
+
+  <h2>3) Quando serve una "factory" che restituisce un handler</h2>
+  <p>
+    Spesso vuoi che l'handler abbia accesso a dati extra (es. una <code>row</code>, un <code>id</code>, un riferimento a un input, ecc.).
+    Un modo pulito  usare una <strong>factory</strong>: una funzione che <strong>crea</strong> e <strong>restituisce</strong> l'handler.
+  </p>
+
+  <div class="note good">
+    <pre><code>// factory: prende row e restituisce la callback reale
+const onRowBlurFactory = (row) =&gt; (e) =&gt; {
+  // e  l'evento (arriva dal browser)
+  // row  "catturata" nella closure
+  console.log('Blur su', e.target, 'nella row', row);
+};
+
+const handler = onRowBlurFactory(row);
+input.addEventListener('blur', handler);
+input.removeEventListener('blur', handler); // ✅ funziona</code></pre>
+  </div>
+
+  <h2>4) Perch in quel caso non puoi chiamare la factory ogni volta</h2>
+  <div class="note warn">
+    <p>
+      Se fai <code>input.addEventListener('blur', onRowBlurFactory(row))</code> ogni volta, stai creando una nuova funzione ogni volta.
+      Quindi poi <code>removeEventListener</code> non matcha e non rimuove.
+    </p>
+    <pre><code>input.addEventListener('blur', onRowBlurFactory(row));
+input.removeEventListener('blur', onRowBlurFactory(row)); // ❌ NON rimuove</code></pre>
+  </div>
+
+  <h2>5) Pattern pratico: salvare l'handler sull'elemento (come nel tuo codice)</h2>
+  <p>
+    Per avere una reference stabile, puoi salvarla come propriet sull'elemento DOM.
+  </p>
+
+  <div class="note good">
+    <pre><code>// crea una volta sola e riusa
+btn._onAddParcel ??= onAddParcelFactory();
+
+btn.removeEventListener('click', btn._onAddParcel);
+btn.addEventListener('click', btn._onAddParcel);
+
+function onAddParcelFactory() {
+  return function (e) {
+    e.preventDefault();
+    // ... logica
+  };
+}</code></pre>
+  </div>
+
+  <h2>6) Cosa significa <code>??=</code></h2>
+  <p>
+    <code>x ??= y</code> significa: "assegna <code>y</code> a <code>x</code> solo se <code>x</code>  <code>null</code> o <code>undefined</code>".
+  </p>
+
+  <div class="note">
+    <pre><code>// equivalente
+if (btn._onAddParcel === null || btn._onAddParcel === undefined) {
+  btn._onAddParcel = onAddParcelFactory();
+}</code></pre>
+  </div>
+
+  <h2>7) Come passa l'evento (event) in questo pattern?</h2>
+  <p>
+    Non lo passi tu: lo passa il browser quando l'evento accade.
+    Quindi l'handler che restituisci deve avere la firma <code>(e) =&gt; { ... }</code>.
+  </p>
+
+  <div class="note good">
+    <pre><code>const handler = (e) =&gt; {
+  console.log(e.type); // 'click', 'blur', 'input', ...
+};
+
+btn.addEventListener('click', handler); // il browser chiamer handler(e)</code></pre>
+  </div>
+
+</body>
+</html>

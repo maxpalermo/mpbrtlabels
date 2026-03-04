@@ -1,0 +1,264 @@
+<dialog id="dlg-brt-request" class="brt-dialog" closedby="none">
+    <form id="form-brt-request" method="POST" action="{{ adminControllerUrl }}" {% if showAsCard %}class="bootstrap"{% endif %}>
+        <div class="{%if showAsCard %}card{% else %}panel{% endif %}" style="margin-bottom:0;">
+            <div class="{%if showAsCard %}card-header{% else %}panel-heading{% endif %} d-flex justify-content-between align-items-center">
+                <div class="title">
+                    <span class="material-icons mr-2">receipt_long</span>
+                    <span class="title">Dati richiesta</span>
+                    {% if showAsCard %}
+                    <span class="title"><strong>ORDINE N. {{ id_order }}</strong></span>
+                    {% endif %}
+                    {% if sandbox_enabled %}
+                        <span class="badge badge-warning">Sandbox Attiva</span>
+                    {% endif %}
+                </div>
+                {% if isAdminEmployee %}
+                <button type="button" class="btn btn-primary" id="btnShowRequestData" style="position: absolute; right: 16px; top: 8px; min-height: 32px;">
+                    <span class="material-icons mr-1">receipt_long</span>
+                    <span>Mostra richiesta</span>
+                </button>
+                {% endif %}
+            </div>
+            <div class="{%if showAsCard %}card-body{% else %}panel-body{% endif %}">
+                <input type="hidden" name="request_json" id="request_json" value="">
+                <fieldset >
+                    <legend>Parametri spedizione</legend>
+                    <div class="btn-group pull-right">
+                        <button type="button" class="btn btn-default" name="btnShowLastError" id="btnShowLastError" tabindex="-1" title="Ultimo Errore">
+                            <span class="material-icons text-danger">error</span>
+                        </button>
+                        <button type="button" class="btn btn-default" name="btnPrintLabel" id="btnPrintLabel" tabindex="-1" title="Stampa etichette" style="display: none;">
+                            <span class="material-icons text-success">print</span>
+                        </button>
+                        <button type="button" class="btn btn-default" name="btnSendRequest" id="btnSendRequest" tabindex="-1" title="Invia">
+                            <span class="material-icons text-success">send</span>
+                        </button>
+                        <button type="button" class="btn btn-default" id="btnCloseDialog" tabindex="-1" title="Chiudi">
+                            <span class="material-icons text-info">close</span>
+                        </button>
+                    </div>
+                    <div class="d-flex justify-content-start align-items-top gap-4">
+                        <div class="form-group">
+                            <label for="numericSenderReference">Riferimento Numerico</label>
+                            <input type="text" class="form-control" name="createData[numericSenderReference]" id="numericSenderReference" value="" autofocus>
+                        </div>
+                        <div class="form-group">
+                            <label for="alphanumericSenderReference">Riferimento Alfanumerico</label>
+                            <input type="text" class="form-control" name="createData[alphanumericSenderReference]" id="alphanumericSenderReference" value="">
+                        </div>
+                        <div class="form-group">
+                            <label for="senderParcelType">Natura Merce</label>
+                            <input type="text" class="form-control" name="createData[senderParcelType]" id="senderParcelType" value="">
+                        </div>
+                        {% if showAsCard is not defined %}
+                        <div class="form-group d-flex justify-content-start align-items-center gap-2" style="border: 1px solid #dcdcdc; border-radius: 5px; padding: 16px;">
+                            <label>Importa dall'ordine</label>
+                            <input type="text" class="form-control" name="order_id" id="order_id" value="">
+                            <button type="button" class="btn btn-primary" id="btnReadOrder">
+                                <span class="material-icons mr-2">import_contacts</span>
+                                <span>Importa</span>
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </fieldset>
+                <fieldset >
+                    <legend>Destinatario</legend>
+                    <div class="d-flex justify-content-start align-items-top gap-4">
+                        <div class="form-group  d-grow">
+                            <label for="consigneeCompanyName">Ragione sociale</label>
+                            <input type="text" class="form-control" name="createData[consigneeCompanyName]" id="consigneeCompanyName" value="">
+                        </div>
+                        <div class="form-group  d-grow">
+                            <label for="consigneeAddress">Indirizzo</label>
+                            <input type="text" class="form-control" name="createData[consigneeAddress]" id="consigneeAddress" value="">
+                        </div>
+                        <div class="form-group fixed-width-md">
+                            <label for="consigneeZIPCode">CAP</label>
+                            <input type="text" class="form-control" name="createData[consigneeZIPCode]" id="consigneeZIPCode" value="">
+                        </div>
+                        <div class="form-group d-grow">
+                            <label for="consigneeCity">Città</label>
+                            <input type="text" class="form-control" name="createData[consigneeCity]" id="consigneeCity" value="">
+                        </div>
+                        <div class="form-group fixed-width-md">
+                            <label for="consigneeProvinceAbbreviation">Provincia</label>
+                            <input type="text" class="form-control" name="createData[consigneeProvinceAbbreviation]" id="consigneeProvinceAbbreviation" value="">
+                        </div>
+                        <div class="form-group fixed-width-md">
+                            <label for="consigneeCountryAbbreviationISOAlpha2">Nazione</label>
+                            <input type="text" class="form-control" name="createData[consigneeCountryAbbreviationISOAlpha2]" id="consigneeCountryAbbreviationISOAlpha2" value="IT">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-start align-items-top gap-4">
+                        <div class="form-group d-grow">
+                            <label for="consigneeContactName">Contatto</label>
+                            <input type="text" class="form-control" name="createData[consigneeContactName]" id="consigneeContactName" value="">
+                        </div>
+                        <div class="form-group fixed-width-lg">
+                            <label for="consigneeTelephone">Telefono</label>
+                            <input type="text" class="form-control" name="createData[consigneeTelephone]" id="consigneeTelephone" value="">
+                        </div>
+                        <div class="form-group fixed-width-lg">
+                            <label for="consigneeMobilePhoneNumber">Cellulare</label>
+                            <input type="text" class="form-control" name="createData[consigneeMobilePhoneNumber]" id="consigneeMobilePhoneNumber" value="">
+                        </div>
+                        <div class="form-group d-grow">
+                            <label for="consigneeEMail">Email</label>
+                            <input type="email" class="form-control" name="createData[consigneeEMail]" id="consigneeEMail" value="">
+                        </div>
+                        <div class="form-group d-grow">
+                            <label for="notes">Note</label>
+                            <textarea class="form-control" name="createData[notes]" id="notes" rows="3"></textarea>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset >
+                    <legend>Colli</legend>
+                    <div class="d-flex justify-content-start align-items-top gap-4">
+                        <div class="form-group">
+                            <div class="d-flex justify-content-start align-items-top gap-4">
+                                <div class="form-group fixed-width-md">
+                                    <label for="numberOfParcels">Totale Colli</label>
+                                    <input type="number" class="form-control text-right" name="createData[numberOfParcels]" id="numberOfParcels" value="1" min="1">
+                                </div>
+                                <div class="form-group fixed-width-md">
+                                    <label for="weightKG">Totale Peso Kg</label>
+                                    <input type="number" step="0.1" class="form-control text-right" name="createData[weightKG]" id="weightKG" value="1">
+                                </div>
+                                <div class="form-group fixed-width-md">
+                                    <label for="volumeM3">Totale Volume m<sup>3</sup></label>
+                                    <input type="number" step="0.001" class="form-control text-right" name="createData[volumeM3]" id="volumeM3" value="0.001">
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end align-items-top gap-4">
+                                <button type="button" class="btn btn-primary" id="btnAddParcel">
+                                    <span class="material-icons mr-2">add</span>
+                                    <span>Aggiungi collo</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="d-grow">
+                            <table id="tableParcels" class="table table-condensed table-striped table-bordered table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Collo</th>
+                                        <th>Lunghezza</th>
+                                        <th>Altezza</th>
+                                        <th>Profondità</th>
+                                        <th>Peso</th>
+                                        <th>Volume</th>
+                                        <th>Operazioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset >
+                    <legend>Contrassegno</legend>
+                    <div class="d-flex justify-content-start align-items-top gap-4">
+                        <div class="form-group">
+                            <label>Contrassegno</label>
+                            {% if showAsCard %}
+                            <div class="ps-switch ps-switch-lg ps-togglable-row">
+                                <input type="radio" name="createData[isCODMandatory]" id="isCODMandatory_0" value="0" checked>
+                                <label for="isCODMandatory_0">NO</label>
+                                <input type="radio" name="createData[isCODMandatory]" id="isCODMandatory_1" value="1">
+                                <label for="isCODMandatory_1">SI</label>
+                                <span class="slide-button"></span>
+                            </div>
+                            {% else %}
+                            <div class="form-input">
+                                <span class="switch prestashop-switch fixed-width-lg">
+                                <input type="radio" name="createData[isCODMandatory]" id="isCODMandatory_1" value="1">
+                                <label for="isCODMandatory_1">SI</label>
+                                <input type="radio" name="createData[isCODMandatory]" id="isCODMandatory_0" value="0" checked>
+                                <label for="isCODMandatory_0">NO</label>
+                                <a class="slide-button btn"></a>
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label>Importo</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="createData[cashOnDelivery]" id="cashOnDelivery" value="0.00">
+                                <span class="input-group-{%if showAsCard %}text{% else %}addon{% endif %}">EUR</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo di pagamento</label>
+                            <select class="form-control" name="createData[codPaymentType]" id="codPaymentType">
+                                {% for item in codPaymentTypeOptions %}
+                                     <option value="{{ item.id }}">{{ item.value }}</option>
+                                 {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>Impostazioni</legend>
+                    <div class="d-flex justify-content-start align-items-top gap-4">
+                        <div class="form-group">
+                            <label for="network">Network</label>
+                            <select class="form-control" name="createData[network]" id="network">
+                                <option value="">Default</option>
+                                <option value="D">DPD</option>
+                                <option value="E">Euro Express</option>
+                                <option value="S">FED</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="deliveryFreightTypeCode">Porto</label>
+                            <select class="form-control" name="createData[deliveryFreightTypeCode]" id="deliveryFreightTypeCode">
+                                <option value="DAP">Franco</option>
+                                <option value="EXW">Assegnato</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="serviceType">Servizio</label>
+                            <select class="form-control" name="createData[serviceType]" id="serviceType">
+                                <option value="">Default</option>
+                                <option value="E">Priority</option>
+                                <option value="H">10:30</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Cambia Stato in {{ orderStateChange }}</label>
+                            {% if showAsCard %}
+                            <div class="ps-switch ps-switch-lg ps-togglable-row">
+                                <input type="radio" name="changeOrderState" id="changeOrderState_0" value="0">
+                                <label for="changeOrderState_0">NO</label>
+                                <input type="radio" name="changeOrderState" id="changeOrderState_1" value="1" checked>
+                                <label for="changeOrderState_1">SI</label>
+                                <span class="slide-button"></span>
+                            </div>
+                            {% else %}
+                            <div class="form-input">
+                                <span class="switch prestashop-switch fixed-width-lg">
+                                <input type="radio" name="changeOrderState" id="changeOrderState_1" value="1" checked>
+                                <label for="changeOrderState_1">SI</label>
+                                <input type="radio" name="changeOrderState" id="changeOrderState_0" value="0">
+                                <label for="changeOrderState_0">NO</label>
+                                <a class="slide-button btn"></a>
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label>Codice PUDO</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="createData[pudoId]" id="pudoId" value="">
+                                <span class="input-group-{% if showAsCard %}text{% else %}addon{% endif %} material-icons text-danger">location_on</span>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+    </form>
+</dialog>

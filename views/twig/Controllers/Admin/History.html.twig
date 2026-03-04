@@ -35,6 +35,16 @@
         </div>
     </div>
     <div class="panel-body">
+        <div class="btn-group">
+            <button type="button" class="btn btn-default text-center" id="btn-print-last-bordero">
+                <div class="material-icons mr-2">print</div>
+                <div>Stampa ultimo bordero</div>
+            </button>
+            <button type="button" class="btn btn-default text-center" id="btn-print-selected-labels">
+                <div class="material-icons mr-2">list</div>
+                <div>Stampa etichette selezionate</div>
+            </button>
+        </div>
         <table class="table-bordered table-condensed table-striped table-hover" id="table-list-bordero">
         </table>
     </div>
@@ -45,11 +55,15 @@
 <script src="{{ asset('bs-table/bootstrap-table.min.js') }}"></script>
 <script src="{{ asset('bs-table/extensions/filter-control/bootstrap-table-filter-control.min.js') }}"></script>
 <script src="{{ asset('bs-table/locale/bootstrap-table-it-IT.min.js') }}"></script>
+<script src="{{ asset('js/fixBootstrapTable.js') }}"></script>
 <script src="{{ asset('js/AdminMpBrtLabels.js') }}"></script>
 <script src="{{ asset('js/qz-tray.js') }}"></script>
 <script src="{{ asset('js/PdfLib/pdf-lib.min.js') }}"></script>
-<script src="{{ asset('js/mergePDF.js') }}"></script>
+<script src="{{ asset('js/PdfMergerClass.js') }}"></script>
 <script src="{{ asset('js/PrintParcels.js') }}"></script>
+<script src="{{ asset('js/deleteParcel.js') }}"></script>
+<script src="{{ asset('js/PrintBordero.js') }}"></script>
+<script src="{{ asset('js/dateToItalian.js') }}"></script>
 
 <script>
     const adminControllerUrl = "{{ adminControllerUrl | raw }}";
@@ -58,6 +72,8 @@
     document.addEventListener('DOMContentLoaded', () => {
         const table = document.getElementById('table-list-bordero');
         initTable(table);
+        bindBtnPrintLastBordero();
+        bindBtnPrintMultipleLabels();
     });
 
     async function initPrintParcels(parcels) {
@@ -71,13 +87,14 @@
     function bindTableRowsButtons()
     {
         const table = document.getElementById('table-list-bordero');
-        const buttons = table.querySelectorAll('tbody tr button');
+        const btnsPrint = table.querySelectorAll('tbody tr button[name="btn-print"]');
+        const btnsDelete = table.querySelectorAll('tbody tr button[name="btn-delete"]');
         const tableRows = $(table).bootstrapTable('getData');
         console.log("Table rows", tableRows);
         
         // Add click event to each row
-        if (buttons) {
-            buttons.forEach(button => {
+        if (btnsPrint) {
+            btnsPrint.forEach(button => {
                 button.addEventListener('click', async (e) => {
                     const parcels = [];
                     const row = button.closest('tr');
@@ -91,6 +108,62 @@
                     
                     await initPrintParcels(parcels);
                 });
+            });
+        }
+
+        if (btnsDelete) {
+            btnsDelete.forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const row = button.closest('tr');
+                    const dataIndex = row.dataset.index;
+                    const numericSenderReference = tableRows[dataIndex].numericSenderReference;
+                    const alphanumericSenderReference = tableRows[dataIndex].alphanumericSenderReference;
+                    const year = tableRows[dataIndex].year;
+                    
+                    await deleteParcel(numericSenderReference, alphanumericSenderReference, year);
+                    $("#table-list-bordero").bootstrapTable('refresh');
+                });
+            });
+        }
+    }
+
+    function bindBtnPrintLastBordero()
+    {
+        const btnPrintLastBordero = document.getElementById("btn-print-last-bordero");
+        if (btnPrintLastBordero) {
+            btnPrintLastBordero.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (!confirm("Stampare l'ultimo borderò?")) {
+                    return false;
+                }
+                const printBordero = new PrintBordero(adminControllerUrl);
+                await printBordero.printLastBordero();
+            });
+        }
+    }
+
+    function bindBtnPrintMultipleLabels()
+    {
+        const btnPrintMultipleLabels = document.getElementById("btn-print-selected-labels");
+        if (btnPrintMultipleLabels) {
+            btnPrintMultipleLabels.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const selectedRows = $("#table-list-bordero").bootstrapTable('getSelections');
+                if (selectedRows.length == 0) {
+                    showErrorMessage("Seleziona almeno una riga!");
+                    return false;
+                }
+
+                if (!confirm("Stampare le etichette selezionate?")) {
+                    return false;
+                }
+
+                const printParcels = new PrintParcels([], adminControllerUrl);
+                await printParcels.printMultipleLabels(selectedRows);
             });
         }
     }
@@ -156,6 +229,9 @@
                 bindTableRowsButtons();
             },
             columns: [
+                {
+                    checkbox: true,
+                },
                 {
                     field: "id_brt_labels_response",
                     title: "ID",
@@ -239,7 +315,7 @@
                 },
                 {
                     field: "consigneeCountryAbbreviationBRT",
-                    title: "Nazione",
+                    title: "Naz",
                     align: "center",
                     sortable: true,
                     filterControl: "input",
@@ -280,7 +356,7 @@
                 },
                 {
                     field: "isCODMandatory",
-                    title: "Contrassegno",
+                    title: "C/Ass",
                     align: "right",
                     sortable: true,
                     filterControl: "select",
@@ -378,17 +454,6 @@
                                 <button type="button" class="btn btn-default btn-sm" name="btn-print" title="Stampa" data-id="${row.id_mpnote}" data-action="print">
                                     <span class="material-icons">print</span>
                                 </button>
-                                <button type="button" class="btn btn-default btn-sm" name="btn-delete" title="Elimina" data-id="${row.id_mpnote}" data-action="delete">
-                                    <span class="material-icons">delete</span>
-                                </button>
-                            </div>
-                        `;
-                    },
-                },
-            ],
-        });
-    }
-</script>
                                 <button type="button" class="btn btn-default btn-sm" name="btn-delete" title="Elimina" data-id="${row.id_mpnote}" data-action="delete">
                                     <span class="material-icons">delete</span>
                                 </button>

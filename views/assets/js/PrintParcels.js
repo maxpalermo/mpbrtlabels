@@ -73,6 +73,47 @@ class PrintParcels {
         const merger = new PdfMerger(streams);
         return await merger.print();
     }
+
+    async printMultipleLabels(items = []) {
+        const labels = [];
+        items.forEach((it) => {
+            labels.push({
+                numericSenderReference: it.numericSenderReference,
+                year: it.year,
+            });
+        });
+
+        const fd = new FormData();
+        fd.append("ajax", "1");
+        fd.append("action", "printMultipleLabels");
+        fd.append("items", JSON.stringify(labels));
+
+        const response = await fetch(this.adminControllerUrl, {
+            method: "POST",
+            body: fd,
+        });
+
+        if (!response.ok) {
+            showErrorMessage("Errore nella richiesta al server");
+            return;
+        }
+
+        const data = await response.json();
+        if (!data || !data.success) {
+            showErrorMessage("Impossibile generare le etichette");
+            return;
+        }
+
+        this.printStream(data.stream);
+    }
+
+    async printStream(stream) {
+        const merger = new PdfMerger(stream);
+        if (!merger) {
+            throw new Error("Errore nella creazione del merger");
+        }
+        return await merger.open();
+    }
 }
 
 window.PrintParcels = PrintParcels;

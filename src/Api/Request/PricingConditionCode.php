@@ -25,25 +25,31 @@ class PricingConditionCode
 {
     protected $newtwok;
     protected $numberOfParcels;
+    protected $weightKg;
+    protected $volumeM3;
     protected $sandBox;
 
-    public function __construct($network, $numberOfParcels, $sandBox = false)
+    public function __construct($network, $numberOfParcels, $weightKg, $volumeM3, $sandBox = false)
     {
         $this->newtwok = $network;
         $this->numberOfParcels = $numberOfParcels;
+        $this->weightKg = $weightKg;
+        $this->volumeM3 = $volumeM3;
         $this->sandBox = $sandBox;
     }
 
     public function getPricingConditionCode()
     {
-        if ('D' == $this->newtwok) {
-            if (1 == $this->numberOfParcels) {
+        if ($this->newtwok == 'D') {
+            if ($this->numberOfParcels == 1) {
                 $pricingConditionCode = '390';
             } elseif ($this->numberOfParcels > 1 && $this->numberOfParcels < 6) {
                 $pricingConditionCode = '395';
             } else {
-                $pricingConditionCode = '390';
+                $pricingConditionCode = '';
             }
+        } elseif ($this->newtwok == '' && $this->weightKg == 1 && $this->volumeM3 == 0.001) {
+            $pricingConditionCode = '100';
         } else {
             $pricingConditionCode = '020';  // 010
         }

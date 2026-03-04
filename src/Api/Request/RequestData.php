@@ -105,7 +105,7 @@ class RequestData
         int $orderId,
         array $createData,
         array $parcels,
-        int $year
+        int $year,
     ) {
         if (!$year) {
             $year = date('Y');
@@ -134,17 +134,17 @@ class RequestData
         $this->network = $createData['network'] ?? '';
         $this->deliveryFreightTypeCode = $createData['deliveryFreightTypeCode'] ?? 'DAP';
         $this->numberOfParcels = $createData['numberOfParcels'] ?? 1;
-        $this->pricing_condition_code = (new PricingConditionCode($this->network, $this->numberOfParcels, $this->sandBox))->getPricingConditionCode();
+        $this->pricing_condition_code = (new PricingConditionCode($this->network, $this->numberOfParcels, $createData['weightKG'], $createData['volumeM3'], $this->sandBox))->getPricingConditionCode();
         $this->serviceType = $createData['serviceType'] ?? '';
         $this->consignee = new Consignee($createData);
         $this->senderParcelType = $createData['senderParcelType'] ?? '';
         $this->notes = $createData['notes'] ?? '';
         $this->isCODMandatory = (int) ($createData['isCODMandatory'] ?? 0);
         $this->codPaymentType = $createData['codPaymentType'] ?? '';
-        $this->cashOnDelivery = (int) ($createData['cashOnDelivery'] ?? 0);
+        $this->cashOnDelivery = (float) ($createData['cashOnDelivery'] ?? 0);
         $this->codCurrency = $createData['codCurrency'] ?? 'EUR';
         $this->numberOfParcels = $createData['numberOfParcels'] ?? 1;
-        $this->weightKg = $createData['weightKg'] ?? 1;
+        $this->weightKg = $createData['weightKG'] ?? 1;
         $this->volumeM3 = $createData['volumeM3'] ?? 0.01;
         $this->parcels = $this->parseParcels($parcels);
         $this->pudoId = $createData['pudoId'] ?? '';
@@ -368,5 +368,12 @@ class RequestData
         }
 
         return $dt->format('Y-m-d H:i:s');
+    }
+
+    public function showRequestData()
+    {
+        $requestData = $this->getRequestData();
+        $requestData['showRequestData'] = 1;
+        return $requestData;
     }
 }

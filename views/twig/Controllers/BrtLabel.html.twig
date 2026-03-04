@@ -1,0 +1,254 @@
+<dialog class="panel" data-id-label="" id="dialogBrtLabel">
+    <form method="post" id="form-brtlabel">
+        <div class="panel-heading">
+            <span>Etichetta bartolini</span>
+            <div class="btn-group pull-right">
+                {% if isAdminEmployee %}
+                    <button type="button" class="btn btn-default" name="btnShowRequest" id="btnShowRequest" tabindex="-1" title="Mostra richiesta API">
+                        <span class="material-icons text-danger">list</span>
+                        <span>Mostra richiesta BRT</span>
+                    </button>
+                {% endif %}
+                
+                <button type="button" class="btn btn-default" name="btnShowLastError" id="btnShowLastError" tabindex="-1" title="Ultimo Errore">
+                    <span class="material-icons text-danger">error</span>
+                </button>
+                <button type="button" class="btn btn-default" name="btnPrintParcel" id="btnPrintParcel" tabindex="-1" title="Stampa etichette" style="display: none">
+                    <span class="material-icons text-success">print</span>
+                </button>
+                <button type="button" class="btn btn-default" name="btnSendRequest" id="btnSendRequest" tabindex="-1" title="Invia">
+                    <span class="material-icons text-success">send</span>
+                </button>
+                <button type="button" class="btn btn-default" id="btnCloseDialog" tabindex="-1" title="Chiudi">
+                    <span class="material-icons text-info">close</span>
+                </button>
+            </div>
+        </div>
+        <div class="panel-body">
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="import-order">
+                        
+                    </div>
+                    <table class="table table-condensed table-borderless" id="mpbrtlabel-table-params" style="width: 70%">
+                        <thead>
+                            <tr colspan="2">
+                                <th>Parametri spedizione</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Riferimento Numerico</td>
+                                <td><table-input data-category="createData" data-name="numericSenderReference" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-maxlength="16" placeholder="Riferimento numerico"></table-input></td>
+                            </tr>
+                            <tr>
+                                <td>Riferimento Alfanumerico</td>
+                                <td><table-input data-category="createData" data-name="alphanumericSenderReference" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-maxlength="16" placeholder="Riferimento alfanumerico"></table-input></td>
+                            </tr>
+                            <tr>
+                                <td>Natura merce</td>
+                                <td><table-input data-category="createData" data-name="senderParcelType" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-maxlength="16" placeholder="Natura merce"></table-input></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <table class="table table-condensed table-borderless" id="mpbrtlabel-table-params" style="width: 70%">
+                        <thead>
+                            <tr colspan="2">
+                                <th>Destinatario</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>RagioneSociale</td>
+                                <td><table-input data-category="createData" data-name="consigneeCompanyName" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" placeholder="Ragione sociale"></table-input></td>
+                            </tr>
+                            <tr>
+                                <td>Indirizzo</td>
+                                <td><table-input data-category="createData" data-name="consigneeAddress" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" placeholder="Indirizzo"></table-input></td>
+                            </tr>
+                            <tr>
+                                <td>CAP</td>
+                                <td><table-input data-category="createData" data-name="consigneeZIPCode" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" placeholder="CAP"></table-input></td>
+                            </tr>
+                            <tr>
+                                <td>Città</td>
+                                <td><table-input data-category="createData" data-name="consigneeCity" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" placeholder="Città"></table-input></td>
+                            </tr>
+                            <tr>
+                                <td>Provincia</td>
+                                <td><table-input data-category="createData" data-name="consigneeProvinceAbbreviation" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" placeholder="Prov"></table-input></td>
+                            </tr>
+                            <tr>
+                                <td>Nazione</td>
+                                <td><table-input data-category="createData" data-name="consigneeCountryAbbreviationISOAlpha2" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" placeholder="Nazione"></table-input></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <table class="table table-condensed table-borderless" id="mpbrtlabel-table-parcels">
+                        <thead>
+                            <tr>
+                                <th colspan="7">
+                                    <div style="display: flex; justify-content: space-between; align-items: center">
+                                        <div class="form-group">
+                                            <button class="btn btn-primary" type="button" onclick="addEmptyRow()">
+                                                <span class="material-icons">add</span>
+                                                <span>Nuovo collo</span>
+                                            </button>
+                                        </div>
+                                        <div style="display: flex; justify-content: end; align-items: center; gap: 1rem">
+                                            <div class="form-group">
+                                                <label for="parcels-number">Colli</label>
+                                                <span data-category="createData" name="numberOfParcels" id="totColli" class="form-control text-right" style="min-width: 3rem">0</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="parcels-weight">Peso</label>
+                                                <span data-category="createData" name="weightKG" id="totPeso" class="form-control text-right form-suffix form-suffix-weight" style="min-width: 6rem">0.000</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="parcels-volume">Volume</label>
+                                                <span data-category="createData" name="volumeM3" id="totVolume" class="form-control text-right form-suffix form-suffix-volume" style="min-width: 4rem">0.0</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                            </tr>
+                            <tr>
+                                <th>Collo</th>
+                                <th>X</th>
+                                <th>Y</th>
+                                <th>Z</th>
+                                <th>Peso</th>
+                                <th>Volume</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dynamic content-->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="col-lg-6">
+                    <table class="table table-condensed table-borderless" id="mpbrtlabel-table-cod" style="width: 70%">
+                        <thead>
+                            <tr colspan="2">
+                                <th>Contrassegno</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Contrassegno</td>
+                                <td>
+                                    <table-input data-category="createData" data-type="switch" data-name="isCODMandatory" data-value-on="1" data-value-off="0" data-label-on="SI" data-label-off="NO"></table-input>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Importo</td>
+                                <td><table-input data-category="createData" data-currency="eur" data-name="cashOnDelivery" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-text-align="right" placeholder="Importo"></table-input></td>
+                            </tr>
+                            <tr>
+                                <td>Tipo di pagamento</td>
+                                <td>
+                                    <select data-category="createData" class="form-control" name="codPaymentType" id="codPaymentType">
+                                        <option value="">CONTANTI</option>
+                                        <option value="BM">ASSEGNO BANCARIO MITTENTE</option>
+                                        <option value="CM">ASSEGNO CIRCOLARE MITTENTE</option>
+                                        <option value="BB">ASSEGNO BANCARIO CORRIERE (MANLEVA)</option>
+                                        <option value="OM">ASSEGNO MITTENTE (ORIGINALE)</option>
+                                        <option value="OC">ASSEGNO CIRCOLARE MITTENTE (ORIGINALE)</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <table class="table table-condensed table-borderless" id="mpbrtlabel-table-contacts" style="width: 70%">
+                        <thead>
+                            <tr colspan="2">
+                                <th>Contatti</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Contatto</td>
+                                <td>
+                                    <table-input data-category="createData" data-name="consigneeContactName" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-text-align="right" placeholder="Contatto"></table-input>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Telefono</td>
+                                <td><table-input data-category="createData" data-name="consigneeTelephone" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-text-align="right" placeholder="Telefono"></table-input></td>
+                            </tr>
+                            <tr>
+                                <td>Cellulare</td>
+                                <td><table-input data-category="createData" data-name="consigneeMobilePhoneNumber" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-text-align="right" placeholder="Cellulare"></table-input></td>
+                            </tr>
+                            <tr>
+                                <td>Email</td>
+                                <td><table-input data-category="createData" data-name="consigneeEMail" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-text-align="right" placeholder="Email"></table-input></td>
+                            </tr>
+                            <tr>
+                                <td>Note</td>
+                                <td><table-input data-category="createData" data-name="notes" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" placeholder="Note" data-type="textarea" data-rows="3"></table-input></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <table class="table table-condensed table-borderless" id="mpbrtlabel-table-settings" style="width: 70%">
+                        <thead>
+                            <tr colspan="2">
+                                <th>Impostazioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Network</td>
+                                <td>
+                                    <select data-category="createData" class="form-control" name="network" id="network">
+                                        <option value="">Default</option>
+                                        <option value="D">DPD</option>
+                                        <option value="E">Euro Express</option>
+                                        <option value="S">FED</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Porto</td>
+                                <td>
+                                    <select data-category="createData" class="form-control" name="deliveryFreightTypeCode" id="deliveryFreightTypeCode">
+                                        <option value="DAP">Franco</option>
+                                        <option value="EXW">Assegnato</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Servizio</td>
+                                <td>
+                                    <select data-category="createData" class="form-control" name="serviceType" id="serviceType">
+                                        <option value="">Default</option>
+                                        <option value="E">Priority</option>
+                                        <option value="H">10:30</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Cambia stato in {{ orderStateChange | raw }}</td>
+                                <td>
+                                    <table-input data-category="createData" data-type="switch" data-name="changeOrderState" data-value-on="1" data-value-off="0" data-label-on="SI" data-label-off="NO"></table-input>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Codice PUDO</td>
+                                <td><table-input data-category="createData" data-name="pudoId" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-text-align="right" placeholder="Codice PUDO"></table-input></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="panel-footer">
+            <button type="button" class="btn btn-default" onclick="hideBrtLabelDialog()">Chiudi</button>
+        </div>
+    </form>
+</dialog>

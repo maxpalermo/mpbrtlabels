@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BrtLabelFormWrapper - Manuale API</title>
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif; line-height: 1.5; margin: 24px; max-width: 1100px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 8px; padding: 12px; overflow: auto; }
+    h1, h2, h3 { line-height: 1.2; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #d0d7de; padding: 8px; vertical-align: top; }
+    th { background: #f6f8fa; text-align: left; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eaeef2; border: 1px solid #d0d7de; font-size: 12px; }
+    .muted { color: #57606a; }
+    .warn { color: #9a6700; }
+    .ok { color: #1a7f37; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 980px) { .grid { grid-template-columns: 1fr 1fr; } }
+    a { color: #0969da; }
+  </style>
+</head>
+<body>
+
+<h1>BrtLabelFormWrapper <span class="badge">mpbrtlabels</span></h1>
+<p class="muted">
+  Manuale tecnico (API JS) per la classe <code>BrtLabelFormWrapper</code>.
+  Questo documento descrive: proprietà, metodi, prerequisiti DOM e flussi principali.
+</p>
+
+<h2>1) Scopo</h2>
+<p>
+  <code>BrtLabelFormWrapper</code> è un wrapper JS che gestisce:
+</p>
+<ul>
+  <li>indicizzazione e lettura/scrittura dei campi del form (in particolare <code>table-input</code> e <code>select</code>)</li>
+  <li>caricamento iniziale dati dal server (<code>readOrderRequestParameters</code>)</li>
+  <li>toggle di visibilità per i campi COD (contrassegno)</li>
+  <li>sincronizzazione forzata di <code>changeOrderState</code> quando si è in Admin Orders</li>
+  <li>gestione colli (tabella parcels): aggiunta riga, volume, totali, salvataggio</li>
+  <li>invio richiesta a BRT e parsing risposta</li>
+  <li>merge e visualizzazione in browser dei PDF etichette (base64) tramite <code>PDFLib</code></li>
+  <li>helper dialog (open/close) e container growl</li>
+</ul>
+
+<h2>2) Firma costruttore</h2>
+<pre><code>new BrtLabelFormWrapper(endpoint, orderId, action, form, isAdminOrdersPage = false, autosave = false)</code></pre>
+
+<table>
+  <thead>
+    <tr>
+      <th>Parametro</th>
+      <th>Tipo</th>
+      <th>Descrizione</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>endpoint</code></td>
+      <td>string</td>
+      <td>URL del controller admin (AJAX). Esempio: <code>index.php?controller=AdminMpBrtLabels&amp;token=...</code></td>
+    </tr>
+    <tr>
+      <td><code>orderId</code></td>
+      <td>string|number</td>
+      <td>ID ordine corrente (usato in molte action)</td>
+    </tr>
+    <tr>
+      <td><code>action</code></td>
+      <td>string</td>
+      <td>Action AJAX di default per write/select autosave (es. <code>saveLabelField</code>)</td>
+    </tr>
+    <tr>
+      <td><code>form</code></td>
+      <td>HTMLFormElement</td>
+      <td>Elemento <code>&lt;form&gt;</code> contenitore (es. <code>#form-brtlabel</code>)</td>
+    </tr>
+    <tr>
+      <td><code>isAdminOrdersPage</code></td>
+      <td>boolean|string</td>
+      <td>
+        Se truthy, forza <code>changeOrderState</code> su ON.
+        Dal Twig spesso arriva come stringa (<code>"1"</code>, <code>"true"</code>) e viene normalizzata internamente.
+      </td>
+    </tr>
+    <tr>
+      <td><code>autosave</code></td>
+      <td>boolean</td>
+      <td>Se true, i <code>&lt;select name&gt;</code> vengono salvati al change via AJAX</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3) Prerequisiti DOM</h2>
+
+<h3>3.1 Elementi con ID attesi</h3>
+<ul>
+  <li><code>#dialogBrtLabel</code> (tag <code>&lt;dialog&gt;</code>)</li>
+  <li><code>#btnShowRequest</code> (button)</li>
+  <li><code>#btnSendRequest</code> (button)</li>
+  <li><code>#btnShowLastError</code> (button)</li>
+  <li><code>#btnCloseDialog</code> (button)</li>
+  <li><code>#btnPrintParcel</code> (button) (opzionale)</li>
+</ul>
+
+<h3>3.2 Campi gestiti tramite <code>data-category="createData"</code></h3>
+<p>
+  Il wrapper indicizza tutti gli elementi in <code>form</code> che hanno <code>data-category="createData"</code>.
+  Per determinare il nome usa, in ordine:
+</p>
+<ul>
+  <li><code>el.dataset.name</code></li>
+  <li><code>el.getAttribute("name")</code></li>
+  <li><code>el.name</code></li>
+</ul>
+
+<p>
+  Questi elementi vengono raccolti in:
+  <code>createDataElements</code> e mappati in <code>createDataByName: Map&lt;string, HTMLElement[]&gt;</code>.
+</p>
+
+<h3>3.3 Web component <code>&lt;table-input&gt;</code></h3>
+<p>
+  Il wrapper gestisce principalmente <code>table-input</code> e legge/scrive preferendo <code>rawValue</code> quando presente.
+  Per gli switch usa <code>data-type="switch"</code> + <code>data-value-on</code>/<code>data-value-off</code>.
+</p>
+
+<h3>3.4 Tabella colli</h3>
+<ul>
+  <li>Tabella: <code>#mpbrtlabel-table-parcels</code></li>
+  <li>Tbody: <code>#mpbrtlabel-table-parcels tbody</code> (il server può ritornare HTML da rimpiazzare)</li>
+  <li>Totali: <code>#totColli</code>, <code>#totPeso</code>, <code>#totVolume</code></li>
+</ul>
+
+<h2>4) Proprietà (istanza)</h2>
+<div class="grid">
+  <div>
+    <h3>4.1 Config</h3>
+    <ul>
+      <li><code>endpoint</code></li>
+      <li><code>orderId</code></li>
+      <li><code>action</code></li>
+      <li><code>form</code></li>
+      <li><code>isAdminOrdersPage</code></li>
+      <li><code>autosave</code></li>
+    </ul>
+  </div>
+  <div>
+    <h3>4.2 Indicizzazione</h3>
+    <ul>
+      <li><code>tableInputs: HTMLElement[]</code></li>
+      <li><code>selects: HTMLSelectElement[]</code></li>
+      <li><code>buttons: HTMLButtonElement[]</code></li>
+      <li><code>byName: Map&lt;string, HTMLElement[]&gt;</code></li>
+      <li><code>createDataElements: HTMLElement[]</code></li>
+      <li><code>createDataByName: Map&lt;string, HTMLElement[]&gt;</code></li>
+    </ul>
+  </div>
+</div>
+
+<div class="grid">
+  <div>
+    <h3>4.3 COD / Change state</h3>
+    <ul>
+      <li><code>_codSwitch</code>, <code>_codAmount</code>, <code>_codPaymentType</code>, <code>_onCodToggle</code></li>
+      <li><code>_changeOrderState</code>, <code>_onChangeOrderStateInput</code></li>
+    </ul>
+  </div>
+  <div>
+    <h3>4.4 UI (dialog/buttons)</h3>
+    <ul>
+      <li><code>_btnShowRequest</code>, <code>_btnSendRequest</code>, <code>_btnLastError</code>, <code>_btnClose</code>, <code>_btnPrintParcel</code></li>
+      <li><code>_dialog</code></li>
+      <li><code>_uiBound</code> + handler: <code>_onBtnShowRequestClick</code>, <code>_onBtnSendRequestClick</code>, ...</li>
+    </ul>
+  </div>
+</div>
+
+<h2>5) Metodi pubblici (uso tipico)</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Metodo</th>
+      <th>Firma</th>
+      <th>Descrizione</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>refresh</code></td>
+      <td><code>async refresh()</code></td>
+      <td>Reindicizza il form, ribinda eventi, e ricarica parametri da server</td>
+    </tr>
+    <tr>
+      <td><code>reset</code></td>
+      <td><code>reset()</code></td>
+      <td>Resetta i campi (switch ripristinati a valori iniziali), ricalcola totali e riapplica toggle COD/changeState</td>
+    </tr>
+    <tr>
+      <td><code>readCreateData</code></td>
+      <td><code>readCreateData()</code></td>
+      <td>Ritorna oggetto key/value con tutti i campi <code>data-category="createData"</code></td>
+    </tr>
+    <tr>
+      <td><code>writeCreateData</code></td>
+      <td><code>writeCreateData(values)</code></td>
+      <td>Scrive un payload dentro i campi <code>data-category="createData"</code></td>
+    </tr>
+    <tr>
+      <td><code>createRequestParcel</code></td>
+      <td><code>async createRequestParcel(showRequestData = 0)</code></td>
+      <td>
+        Invia richiesta a BRT (AJAX <code>action=sendRequest</code>) con <code>createData</code>.
+        Se <code>showRequestData=1</code> mostra JSON in UI, altrimenti processa la risposta con <code>parseResponse</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><code>parseResponse</code></td>
+      <td><code>async parseResponse(data)</code></td>
+      <td>
+        Gestisce messaggi (<code>executionMessage</code>) e, se presenti, unisce e apre i PDF presenti in risposta.
+        <div class="warn"><strong>Nota:</strong> il codice attuale legge le etichette da <code>data.labels.label</code> (non <code>data.labels</code>).</div>
+      </td>
+    </tr>
+    <tr>
+      <td><code>addEmptyRow</code></td>
+      <td><code>async addEmptyRow(orderId)</code></td>
+      <td>Aggiunge una riga collo via AJAX (<code>action=addEmptyRow</code>) e focus sul primo campo dimensione</td>
+    </tr>
+    <tr>
+      <td><code>calcVolume</code></td>
+      <td><code>calcVolume(input)</code></td>
+      <td>Ricalcola volume riga: <code>(x*y*z)/1000000</code>, poi <code>calcTotals()</code></td>
+    </tr>
+    <tr>
+      <td><code>calcTotals</code></td>
+      <td><code>calcTotals()</code></td>
+      <td>Somma colli/peso/volume dalla tabella e aggiorna <code>#totColli</code>, <code>#totPeso</code>, <code>#totVolume</code></td>
+    </tr>
+    <tr>
+      <td><code>saveParcel</code></td>
+      <td><code>async saveParcel(btn)</code></td>
+      <td>Salva collo via AJAX (<code>action=saveParcel</code>) leggendo i valori dalla riga</td>
+    </tr>
+    <tr>
+      <td><code>showBrtLabelDialog</code></td>
+      <td><code>showBrtLabelDialog()</code></td>
+      <td>Apre il <code>&lt;dialog&gt;</code>, sposta il container growl, fa <code>refresh()</code>, ricalcola i totali</td>
+    </tr>
+    <tr>
+      <td><code>hideBrtLabelDialog</code></td>
+      <td><code>hideBrtLabelDialog()</code></td>
+      <td>Chiude il dialog e ripristina il growl container nel <code>body</code></td>
+    </tr>
+    <tr>
+      <td><code>moveGrowlContainer</code></td>
+      <td><code>moveGrowlContainer(parent = null)</code></td>
+      <td>Crea/sposta <code>#growls-default</code> dentro un parent (dialog) oppure nel body</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>6) Metodi interni / helper</h2>
+<p class="muted">Questi metodi sono pensati per uso interno (prefisso <code>_</code>), ma sapere cosa fanno aiuta a capire il comportamento.</p>
+
+<ul>
+  <li><code>_index()</code> — indicizza elementi e rebind delle funzioni UI/COD/changeState</li>
+  <li><code>_bindUiButtons()</code> — collega i click dei bottoni UI ai metodi <code>createRequestParcel()</code>, <code>onBtnClose()</code>, ecc.</li>
+  <li><code>_bindCodToggle()</code>, <code>_updateCodVisibility()</code> — show/hide righe COD in base a <code>isCODMandatory</code></li>
+  <li><code>_bindChangeOrderStateSync()</code>, <code>_syncChangeOrderState()</code>, <code>_isAdminOrders()</code> — forza <code>changeOrderState</code> quando Admin Orders</li>
+  <li><code>_request(mode, extra, actionOverride)</code> — wrapper fetch che invia <code>ajax=1</code>, <code>action</code>, <code>mode</code> e ritorna JSON</li>
+  <li><code>_getTableInputType()</code>, <code>_setTableInputValue()</code>, <code>_setAllSwitches()</code> — gestione coerente dei <code>table-input</code></li>
+  <li><code>_base64ToUint8Array()</code> — decode base64</li>
+  <li><code>_mergePdfStreamsAndOpen()</code>, <code>_openPdfBytes()</code> — merge PDF e apertura in nuova scheda</li>
+</ul>
+
+<h2>7) Esempi d’uso</h2>
+
+<h3>7.1 Inizializzazione (Admin Order Page)</h3>
+<pre><code>// tipico in Twig/JS dopo DOMContentLoaded
+const form = document.getElementById('form-brtlabel');
+window.BrtLabelForm = new BrtLabelFormWrapper(
+  MPBRTLABELS_ENDPOINT,
+  MPBRTLABELS_ORDER_ID,
+  'saveLabelField',
+  form,
+  MPBRTLABELS_ADMINORDERS,
+  false
+);
+</code></pre>
+
+<h3>7.2 Aprire/chiudere dialog</h3>
+<pre><code>window.BrtLabelForm.showBrtLabelDialog();
+// ...
+window.BrtLabelForm.hideBrtLabelDialog();
+</code></pre>
+
+<h3>7.3 Ottenere payload createData e inviare request</h3>
+<pre><code>const payload = window.BrtLabelForm.readCreateData();
+console.log(payload);
+
+await window.BrtLabelForm.createRequestParcel(0); // invia e poi parseResponse
+</code></pre>
+
+<h3>7.4 Visualizzare JSON richiesta (debug)</h3>
+<pre><code>await window.BrtLabelForm.createRequestParcel(1);
+</code></pre>
+
+<h2>8) Flusso PDF etichette</h2>
+<p>
+  Quando la risposta include una struttura come (semplificata):
+</p>
+<pre><code>{
+  "executionMessage": { "code": 0, "codeDesc": "OK", "message": "..." },
+  "labels": {
+    "label": [
+      { "stream": "JVBERi0xLjcKJc... (base64)" },
+      { "stream": "JVBERi0xLjcKJc... (base64)" }
+    ]
+  }
+}
+</code></pre>
+<p>
+  allora <code>parseResponse()</code>:
+</p>
+<ul>
+  <li>estrae tutti gli <code>stream</code></li>
+  <li>li carica con <code>PDFLib</code></li>
+  <li>li unisce</li>
+  <li>apre il PDF risultante in una nuova scheda</li>
+</ul>
+
+<h2>9) Note operative / limitazioni note</h2>
+<ul>
+  <li>
+    <strong>Popup blocker</strong>: la UI prova ad aprire il PDF in una nuova scheda. Se bloccato dal browser, il wrapper mostra un errore.
+  </li>
+  <li>
+    <strong>Struttura <code>labels</code></strong>: attualmente il codice assume <code>data.labels.label</code> come array. Se l’API cambia e ritorna <code>labels</code> come array diretto, va adeguato.
+  </li>
+  <li>
+    <strong>Delete parcel</strong>: <code>deleteParcel</code> è stub (vuoto).
+  </li>
+  <li>
+    <strong>Print parcel</strong>: <code>onBtnPrintParcel</code> è stub (vuoto).
+  </li>
+</ul>
+
+<hr />
+<p class="muted">Documento generato per la codebase corrente. Se modifichi la classe, rigenera/aggiorna questo manuale.</p>
+
+</body>
+</html>

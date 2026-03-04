@@ -1,0 +1,30 @@
+<tr data-id="{{ parcel.id }}">
+    <td class="pecod">
+        <table-input data-category="parcel" data-text-align="right" data-name="pecod" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-param-id-parcel="{{ parcel.id }}" value="{{ parcel.PECOD }}" placeholder="Codice"></table-input>
+    </td>
+    <td class="x">
+        <table-input data-category="parcel" data-text-align="right" data-name="x" data-decimals="3" data-align="right" data-suffix=" cm" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-param-id-parcel="{{ parcel.id }}" value="{{ parcel.X / 10 }}" placeholder="X" onfocusout="calcVolume(this);"></table-input>
+    </td>
+    <td class="y">
+        <table-input data-category="parcel" data-text-align="right" data-name="y" data-decimals="3" data-align="right" data-suffix=" cm" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-param-id-parcel="{{ parcel.id }}" value="{{ parcel.Y / 10 }}" placeholder="Y" onfocusout="calcVolume(this);"></table-input>
+    </td>
+    <td class="z">
+        <table-input data-category="parcel" data-text-align="right" data-name="z" data-decimals="3" data-align="right" data-suffix=" cm" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-param-id-parcel="{{ parcel.id }}" value="{{ parcel.Z / 10 }}" placeholder="Z" onfocusout="calcVolume(this);"></table-input>
+    </td>
+    <td class="weight">
+        <table-input data-category="parcel" data-text-align="right" data-name="ppeso" data-decimals="3" data-align="right" data-suffix=" kg" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-param-id-parcel="{{ parcel.id }}" value="{{ ((parcel.PPESO|default(1)) == 0) ? 1 : parcel.PPESO }}" placeholder="Peso" onfocusout="calcVolume(this);"></table-input>
+    </td>
+    <td class="volume">
+        <table-input data-category="parcel" data-text-align="right" data-name="pvolu" data-decimals="3" data-align="right" data-suffix=" m3" data-disabled="true" data-endpoint="{{ endpoint | raw }}" data-action="saveLabelField" data-param-id-order="{{ id_order }}" data-param-id-parcel="{{ parcel.id }}" value="{{ ((parcel.PVOLU|default(0.001)) == 0) ? 0.001 : parcel.PVOLU }}" placeholder="Volume"></table-input>
+    </td>
+    <td>
+        <div class="d-flex justify-content-center align-items-center gap-1">
+            <button type="button" class="btn btn-sm btn-info" onclick="saveParcel(this)">
+                <span class="material-icons" title="Salva">save</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-danger" onclick="deleteParcel(this)">
+                <span class="material-icons" title="Elimina">delete</span>
+            </button>
+        </div>
+    </td>
+</tr>
