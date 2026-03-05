@@ -21,6 +21,7 @@
 
 use MpSoft\MpBrtLabels\Api\Request\CodPaymentType;
 use MpSoft\MpBrtLabels\Api\Request\RequestData;
+use MpSoft\MpBrtLabels\Api\Rest\Delete;
 use MpSoft\MpBrtLabels\Helpers\Bordero;
 use MpSoft\MpBrtLabels\Helpers\GetTwigEnvironment;
 use MpSoft\MpBrtLabels\Helpers\Label;
@@ -1396,29 +1397,33 @@ class AdminMpBrtLabelsController extends ModuleAdminController
         $numericSenderReference = (int) Tools::getValue('numericSenderReference');
         $alphanumericSenderReference = Tools::getValue('alphanumericSenderReference');
         $year = (int) Tools::getValue('year');
-        $model = ModelBrtLabelsRequest::getByNumericSenderReference($numericSenderReference, $year);
+        $request = ModelBrtLabelsRequest::getByNumericSenderReference($numericSenderReference, $year);
+        $response = ModelBrtLabelsResponse::getByNumericSenderReference($numericSenderReference, $year);
+        $labels = ModelBrtLabelsParcel::getLabelsByNumericSenderReference($numericSenderReference);
+        $message = false;
 
-        if (!\Validate::isLoadedObject($model) && !$force) {
-            return [
-                'success' => false,
-                'error' => 'Etichetta non trovata',
-            ];
+        $delete = Delete::sendRequest($numericSenderReference, $alphanumericSenderReference);
+        if ($delete && isset($delete['deleteResponse'])) {
+            $message = $delete['deleteResponse']['executionMessage'];
         }
 
-        if (!$model) {
-            $model = new ModelBrtLabelsRequest();
-            $model->numericSenderReference = $numericSenderReference;
-            $model->alphanumericSenderReference = $alphanumericSenderReference;
-            $model->year = $year;
+        if ($request) {
+            $request->delete();
         }
-
-        $response = $model->delete($force);
+        if ($response) {
+            $response->delete();
+        }
+        if ($labels) {
+            foreach ($labels as $label) {
+                $label->delete();
+            }
+        }
 
         return [
             'numericSenderReference' => $numericSenderReference,
             'alphanumericSenderReference' => $alphanumericSenderReference,
             'year' => $year,
-            'response' => $response,
+            'executionMessage' => $message,
         ];
     }
 

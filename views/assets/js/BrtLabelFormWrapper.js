@@ -42,6 +42,11 @@ class BrtLabelFormWrapper {
         this._bindChangeOrderStateSync();
         this._bind();
         this.gerRequestParameters();
+
+        if (!this.isAdminOrdersPage) {
+            this.btnDeleteLabel = document.getElementById("btnDeleteLabel");
+            this.bindOnClick(this.btnDeleteLabel, this.onDeleteLabel);
+        }
     }
 
     addImportOrderButton() {
@@ -987,6 +992,93 @@ class BrtLabelFormWrapper {
         }
 
         return growlContainer;
+    }
+
+    bindOnClick(button, callback, params = null) {
+        // Controlla che esiste il bottone
+        if (!button) {
+            console.error("Bottone non trovato", button);
+
+            return;
+        }
+
+        //controlla che esista il callback
+        if (typeof callback !== "function") {
+            console.error("Callback non è una funzione", callback);
+
+            return;
+        }
+
+        button._onClick ??= callback.call(this, params);
+        button.removeEventListener("click", button._onClick);
+        button.addEventListener("click", button._onClick);
+    }
+
+    onDeleteLabel() {
+        const self = this;
+        return async (e) => {
+            e?.preventDefault?.();
+
+            const nsr = document.querySelector("#deleteNumericSenderReference")?.value || 0;
+            const asr = document.querySelector("#deletealphanumericSenderReference")?.value || "";
+            const year = document.querySelector("#deleteYear")?.value || new Date().getFullYear();
+
+            if (!nsr) {
+                showErrorMessage("Specificare un riferimento numerico");
+                return;
+            }
+
+            let req = "Eliminare la spedizione ";
+            if (nsr) {
+                req += `\ncon riferimento numerico ${nsr}`;
+            }
+            if (asr) {
+                req += `\ncon riferimento alfanumerico ${asr}`;
+            }
+            if (year) {
+                req += `\ndell'anno ${year}`;
+            }
+            req += "?";
+
+            if (!confirm(req)) {
+                return false;
+            }
+
+            const formData = new FormData();
+            formData.append("ajax", 1);
+            formData.append("action", "deleteRequest");
+            formData.append("numericSenderReference", nsr);
+            formData.append("alphanumericSenderReference", asr);
+            formData.append("year", year);
+
+            const endpoint = self.endpoint;
+
+            const response = await fetch(endpoint, {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            const executionMessage = data.executionMessage;
+
+            if (executionMessage.code < 0) {
+                showErrorMessage(`
+                    <h3>Errore ${executionMessage.code}</h3>
+                    <p>Codice: ${executionMessage.codeDesc}</p>
+                    <p>Messaggio: ${executionMessage.message}</p>
+                `);
+            } else if (executionMessage.code > 0) {
+                showSuccessMessage(`
+                    <h3>Attenzione ${executionMessage.code}</h3>
+                    <p>Etichetta eliminata con avvisi</p>
+                    <p>Codice: ${executionMessage.codeDesc}</p>
+                    <p>Messaggio: ${executionMessage.message}</p>
+                `);
+            } else {
+                showSuccessMessage("Etichetta eliminata");
+            }
+        };
     }
 }
 

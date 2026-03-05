@@ -161,6 +161,30 @@ class ModelBrtLabelsParcel extends \ObjectModel
         return self::getBy('PECOD', $parcelCode);
     }
 
+    public static function getLabelsByNumericSenderReference($numericSenderReference)
+    {
+        $value = pSQL($numericSenderReference);
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql
+            ->select(self::$definition['primary'] . ' as `id` ')
+            ->from(self::$definition['table'])
+            ->where("PECOD LIKE '$value-%'");
+
+        $ids = $db->executeS($sql);
+        $labels = [];
+
+        if ($ids) {
+            $ids = array_column($ids, 'id');
+
+            foreach ($ids as $id) {
+                $labels[] = new self($id);
+            }
+        }
+
+        return $labels;
+    }
+
     public static function getBy($field, $value)
     {
         $value = pSQL($value);
